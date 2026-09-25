@@ -86,6 +86,7 @@ export class Survival {
       this.puppy.add(this.puppyTail);
       batchColored(this.puppy, [this.puppyTail]);
       this.puppy.position.set(135, 11, 205);
+      this.puppy.visible = this.state.clock >= 20;
       game.scene.add(this.puppy);
       if (!Object.keys(saved?.chunks || {}).length && this.state.clock === 0) {
         game.world.set(137, 11, 205, 31);
@@ -255,32 +256,6 @@ export class Survival {
   }
   interact(hit: Hit | null) {
     const g = this.game;
-    if (
-      !this.creative &&
-      this.puppy.visible &&
-      this.puppy.position.distanceTo(g.position) < 3
-    ) {
-      if (!this.state.puppy && this.inventory.remove(110)) {
-        this.state.puppy = true;
-        this.state.tutorial = 1;
-        g.audio.chime(76);
-        g.onToast("Щенок с тобой! Он ведёт к верстаку у лодки.");
-        g.particles.burst(
-          this.puppy.position.clone().add(new T.Vector3(0, 1, 0)),
-          "#FF9CC7",
-          20,
-          true,
-        );
-        this.syncBar();
-        g.saveSoon();
-        return true;
-      }
-      if (this.state.puppy && !hit) {
-        g.audio.chime(68);
-        g.onToast("Гав! Щенок охраняет тебя.");
-        return true;
-      }
-    }
     const near = this.state.recovery.findIndex(
       (b) => new T.Vector3(...b.position).distanceTo(g.position) < 3,
     );
@@ -347,6 +322,36 @@ export class Survival {
           g.onToast("Доброе утро! Кровать запомнила дорогу домой.");
         } else g.onToast("Теперь это твоя кровать. Ночью можно поспать.");
         g.saveSoon();
+        return true;
+      }
+    }
+    if (
+      !this.creative &&
+      this.puppy.visible &&
+      this.puppy.position.distanceTo(g.position) < 3
+    ) {
+      if (
+        !this.state.puppy &&
+        g.bar[g.selected] === 110 &&
+        this.inventory.remove(110)
+      ) {
+        this.state.puppy = true;
+        this.state.tutorial = 1;
+        g.audio.chime(76);
+        g.onToast("Щенок с тобой! Он ведёт к верстаку у лодки.");
+        g.particles.burst(
+          this.puppy.position.clone().add(new T.Vector3(0, 1, 0)),
+          "#FF9CC7",
+          20,
+          true,
+        );
+        this.syncBar();
+        g.saveSoon();
+        return true;
+      }
+      if (this.state.puppy && !hit && g.bar[g.selected] === 0) {
+        g.audio.chime(68);
+        g.onToast("Гав! Щенок охраняет тебя.");
         return true;
       }
     }

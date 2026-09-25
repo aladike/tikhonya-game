@@ -176,6 +176,9 @@ test("tickling keeps hotbar and tools; recovery bag and bed rest work", async ({
   await page.evaluate(() => {
     const g = (window as any).__island;
     g.position.fromArray(g.survival.state.recovery[0].position);
+    // A nearby puppy must not intercept recovering belongings or opening a bed.
+    g.survival.puppy.visible = true;
+    g.survival.puppy.position.copy(g.position);
     g.survival.interact(null);
   });
   expect(
