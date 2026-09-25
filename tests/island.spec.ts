@@ -99,22 +99,22 @@ test("touch tap places, long press breaks, camera drag does neither", async ({
   const bounds = await page.locator("#world").boundingBox();
   const x = bounds!.width / 2,
     y = bounds!.height / 2;
-  await page
-    .locator("#world")
-    .dispatchEvent("pointerdown", {
-      pointerId: 91,
-      pointerType: "touch",
-      clientX: x,
-      clientY: y,
-    });
-  await page
-    .locator("#world")
-    .dispatchEvent("pointerup", {
-      pointerId: 91,
-      pointerType: "touch",
-      clientX: x,
-      clientY: y,
-    });
+  // Keep a short tap in one browser task: CI transport between separate
+  // commands can be slower than the application's long-press threshold.
+  await page.locator("#world").evaluate(
+    (canvas, point) => {
+      for (const type of ["pointerdown", "pointerup"])
+        canvas.dispatchEvent(
+          new PointerEvent(type, {
+            pointerId: 91,
+            pointerType: "touch",
+            clientX: point.x,
+            clientY: point.y,
+          }),
+        );
+    },
+    { x, y },
+  );
   await expect
     .poll(() =>
       page.evaluate(() => {
