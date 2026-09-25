@@ -1,17 +1,18 @@
 import './style.css';
 import {ru} from './strings';
 import {Game} from './game';
+import {Adventure} from './adventure';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
 <canvas id="world" aria-label="Трёхмерная лесная поляна"></canvas>
-<div id="leaves" hidden></div>
+<div id="leaves" hidden></div><div id="context-prompt" hidden></div>
 <div id="hud" hidden>
   <header class="topbar"><a class="brand" href="#" aria-label="Тихоня">✦ <span>${ru.title}<small>${ru.subtitle}</small></span></a><div class="top-actions"><span class="pill">✿ <b id="flower-count">0</b></span><button id="help" class="icon-button" aria-label="${ru.help}">?</button><button id="settings" class="icon-button" aria-label="${ru.settings}">⚙</button></div></header>
   <section class="quest"><span class="eyebrow" id="chapter">${ru.chapter}</span><h2 id="objective">${ru.quest}</h2><p id="objective-hint">${ru.questHint}</p><div class="quest-bottom"><span class="little-moon">☾</span><span id="zone-name">${ru.night}</span><span class="quest-dots">· · ·</span></div></section>
   <div class="compass"><span id="compass-arrow">↑</span><small id="distance"></small></div>
   <div class="bottom-info"><span class="status-dot"></span><span id="mode">${ru.walk}</span><span class="desktop-hint">WASD · C — тише</span></div>
   <div class="actions"><button data-key="KeyQ" class="action small"><span>◈</span><small>${ru.throw}</small><kbd>Q</kbd></button><button data-key="KeyE" class="action primary"><span>✋</span><small id="action-label">${ru.action}</small><kbd>E</kbd></button><button data-key="Space" class="action"><span>↟</span><small>${ru.jump}</small><kbd>Space</kbd></button></div>
-  <div id="monster-marker" class="monster-marker" hidden>?</div><div id="stick" hidden><span></span></div><div id="debug"></div>
+  <div id="enemy-marker" class="monster-marker" hidden>☀</div><div id="monster-marker" class="monster-marker" hidden>?</div><div id="stick" hidden><span></span></div><div id="debug"></div>
 </div>
 <div id="toast" role="status"></div>
 <section id="start" class="start-screen"><div class="start-card"><div class="edition">ИСТОРИИ ЛУННОГО ЛЕСА <span>✦</span></div><h1>${ru.title}<span>${ru.subtitle}</span></h1><p class="tagline">${ru.tagline}</p><p class="intro">${ru.intro}</p><button id="play" class="cta">${ru.play}<span>↗</span></button><div class="start-note">Без спешки. Без страха. Вместе с друзьями.</div></div><div class="postcard"><span>☾</span><p>В каждом шорохе —<br>маленькое чудо.</p><small>ЛУННЫЙ ЛЕС · 01</small></div><div class="start-footer">ДЛЯ МАЛЕНЬКИХ И БОЛЬШИХ ИССЛЕДОВАТЕЛЕЙ <span>звук включится после касания ♫</span></div></section>
@@ -30,3 +31,6 @@ document.querySelector('#settings')!.addEventListener('click',()=>{showPanel(`<h
 export {game,showPanel,resume};
 // Development-only inspection surface; eliminated from production bundles.
 if(import.meta.env.DEV)Object.assign(window,{__game:game});
+
+export const adventure=new Adventure(game,showPanel,resume);
+if(import.meta.env.DEV)Object.assign(window,{__adventure:adventure});

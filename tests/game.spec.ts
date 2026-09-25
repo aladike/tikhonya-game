@@ -22,3 +22,11 @@ test('flower delivery and hiding keep the run playable',async({page})=>{
   await page.keyboard.press('KeyE');await expect(page.locator('#toast')).toContainText('смелость');
   await expect(page.locator('#flower-count')).toHaveText('1');
 });
+test('helper finds resources, map unlocks and save survives reload',async({page})=>{
+  await page.goto('./');await page.getByRole('button',{name:'Отправиться в приключение'}).click();
+  await page.getByRole('button',{name:'Друзья'}).click();await page.locator('[data-command="fetch"]').click();
+  await expect(page.locator('#toast')).toContainText('Палочка',{timeout:15000});
+  await page.getByRole('button',{name:'Настройки',exact:true}).click();await expect(page.getByRole('button',{name:'Сохранить файл'})).toBeVisible();
+  await page.reload();await page.getByRole('button',{name:'Отправиться в приключение'}).click();
+  const wood=await page.evaluate(()=>JSON.parse(localStorage.getItem('tikhonya-save-v2')!).inventory.wood);expect(wood).toBeGreaterThan(0);
+});

@@ -27,7 +27,7 @@ jobs:
       - run: go install github.com/zricethezav/gitleaks/v8@v8.24.3
       - run: gitleaks git --redact --no-banner .
       - run: npm ci
-      - run: npm run lint && npm run build
+      - run: npm run lint && npm test && npm run build
       - uses: actions/configure-pages@v5.0.0
         if: github.event_name != 'pull_request'
       - uses: actions/upload-pages-artifact@v3.0.1
