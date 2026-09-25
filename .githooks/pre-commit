@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+command -v gitleaks >/dev/null 2>&1 || { echo 'Install gitleaks before committing.'; exit 1; }
+gitleaks git --pre-commit --staged --redact --no-banner .
+case "$(git var GIT_AUTHOR_IDENT)" in
+  *'@users.noreply.github.com>'*) ;;
+  *) echo 'Use a GitHub noreply author email.'; exit 1 ;;
+esac
