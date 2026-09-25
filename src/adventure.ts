@@ -22,7 +22,7 @@ export class Adventure {
     document.querySelector('.top-actions')!.insertAdjacentHTML('afterbegin','<button id="map" class="icon-button" aria-label="Карта леса">♧</button>');
     document.querySelector('.actions')!.insertAdjacentHTML('afterbegin','<button id="helpers" class="action small"><span>♧</span><small>Друзья</small><kbd>1–3</kbd></button>');
     document.querySelector('#map')!.addEventListener('click',()=>this.map());document.querySelector('#helpers')!.addEventListener('click',()=>this.helpers());
-    this.changeZone(this.state.zone>1?0:this.state.zone,false);game.setDay(false);
+    this.changeZone(this.state.zone>1?0:this.state.zone,false);game.setDay(this.state.day);
     const oldSettings=document.querySelector('#settings')!;oldSettings.replaceWith(oldSettings.cloneNode(true));document.querySelector('#settings')!.addEventListener('click',()=>this.settings());
     if(this.state.delivered>0)document.querySelector('#play')!.textContent='Продолжить приключение';
     if(this.store.recovered)game.toast('Сохранение не удалось прочитать. Можно восстановить резервную копию в настройках.');
@@ -65,7 +65,7 @@ export class Adventure {
     if(g.input.take('Digit1'))this.command('fetch');if(g.input.take('Digit2'))this.command('bark');if(g.input.take('Digit3'))this.command('scout');
     this.saveTimer+=dt;if(this.saveTimer>20){this.saveTimer=0;this.persist();}
     this.catTimer=Math.max(0,this.catTimer-dt);
-    this.companions.forEach((pet,i)=>{
+    if(!g.day)this.companions.forEach((pet,i)=>{
       const target=i===0&&this.dogTarget?this.dogTarget:g.position.clone().add(new T.Vector3(i===0?-1.2:1.2,0,1.4));const delta=target.clone().sub(pet.position);delta.y=0;
       if(delta.length()>.5){pet.position.addScaledVector(delta.normalize(),dt*4.6);pet.rotation.y=Math.atan2(delta.x,delta.z);}pet.position.y=i===1&&this.catTimer>0?2+Math.sin(g.time)*.1:Math.abs(Math.sin(g.time*8+i))*.05;
       if(i===0&&this.dogTarget&&pet.position.distanceTo(this.dogTarget)<.8){if(this.dogCommand==='bark'){g.noise(this.dogTarget,10);g.sound.tone(240,.2,.15);}else{const item=this.items.find(x=>x.id===this.dogCommand);if(item&&item.mesh.visible)this.collect(item);}this.dogTarget=null;}

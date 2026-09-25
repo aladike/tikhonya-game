@@ -2,6 +2,7 @@ import './style.css';
 import {ru} from './strings';
 import {Game} from './game';
 import {Adventure} from './adventure';
+import {Village} from './village';
 const app=document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML=`
 <canvas id="world" aria-label="Трёхмерная лесная поляна"></canvas>
@@ -34,3 +35,6 @@ if(import.meta.env.DEV)Object.assign(window,{__game:game});
 
 export const adventure=new Adventure(game,showPanel,resume);
 if(import.meta.env.DEV)Object.assign(window,{__adventure:adventure});
+
+export const village=new Village(adventure);
+if(import.meta.env.DEV)Object.assign(window,{__village:village});

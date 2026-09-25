@@ -30,3 +30,15 @@ test('helper finds resources, map unlocks and save survives reload',async({page}
   await page.reload();await page.getByRole('button',{name:'Отправиться в приключение'}).click();
   const wood=await page.evaluate(()=>JSON.parse(localStorage.getItem('tikhonya-save-v2')!).inventory.wood);expect(wood).toBeGreaterThan(0);
 });
+test('a delivered flower becomes a house used by the dog',async({page})=>{
+  await page.goto('./');await page.getByRole('button',{name:'Отправиться в приключение'}).click();
+  await page.evaluate(()=>{const g=(window as any).__game;g.position.set(0,0,-17);g.act();g.position.set(0,0,10);g.act();});
+  await expect(page.locator('#zone-name')).toHaveText('Домашняя поляна');
+  await page.getByRole('button',{name:'Дом и постройки'}).click();await page.locator('[data-recipe="0"]').click();
+  await page.evaluate(()=>{(window as any).__game.position.set(-5,0,10);});
+  await expect(page.locator('#action-label')).toHaveText('Поставить');await page.keyboard.press('KeyE');
+  await expect(page.locator('#toast')).toContainText('готов');
+  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('tikhonya-save-v2')!).buildings)).toContain('doghouse');
+  await page.getByRole('button',{name:'Дом и постройки'}).click();await page.locator('#night-request').click();await page.locator('#accept-request').click();
+  await expect(page.locator('#zone-name')).toHaveText('Серебряный ручей');
+});
