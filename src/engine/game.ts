@@ -124,6 +124,8 @@ export class IslandGame {
     while (collides(this.position, get) && this.position.y < 63)
       this.position.y++;
     this.input = new Controls(canvas);
+    this.input.touchSensitivity = saved?.touchSensitivity ?? 1;
+    this.input.mouseSensitivity = saved?.mouseSensitivity ?? 1;
     this.input.onPlace = () => {
       if (!this.paused) this.place();
     };
@@ -494,7 +496,7 @@ export class IslandGame {
     this.saveTime = 0.6;
   }
   update(dt: number) {
-    this.input.update();
+    this.input.update(dt);
     this.yaw += this.input.yaw;
     this.pitch = T.MathUtils.clamp(this.pitch + this.input.pitch, -1.4, 1.4);
     this.input.yaw = this.input.pitch = 0;
@@ -806,6 +808,8 @@ export class IslandGame {
       chunks,
       music: this.audio.music,
       effects: this.audio.effects,
+      touchSensitivity: this.input.touchSensitivity,
+      mouseSensitivity: this.input.mouseSensitivity,
       quality: this.quality,
     };
   }

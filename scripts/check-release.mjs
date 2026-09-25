@@ -85,6 +85,7 @@ for (const [name, type, options] of [
     await page.getByRole("button", { name: "Настройки", exact: true }).click();
     await page.locator("#quality").selectOption("low");
     await page.locator("#music").fill("0");
+    await page.locator("#touch-sensitivity").fill("0.5");
     const downloading = page.waitForEvent("download");
     await page.locator("#export-save").click();
     const file = await downloading;
@@ -128,6 +129,7 @@ for (const [name, type, options] of [
     await page.getByRole("button", { name: "Настройки", exact: true }).click();
     assert.equal(await page.locator("#music").inputValue(), "0");
     assert.equal(await page.locator("#quality").inputValue(), "low");
+    assert.equal(await page.locator("#touch-sensitivity").inputValue(), "0.5");
     await page.getByRole("button", { name: "Закрыть", exact: true }).click();
     await page.screenshot({
       path: `test-results/${remote ? "published" : "offline"}-${name}.png`,

@@ -159,7 +159,7 @@ export class Interface {
   settings() {
     const g = this.game;
     this.panel(
-      `<h2>Твой остров</h2><label>Название <input id="world-name" maxlength="24" autocomplete="off"></label><label>Музыка <input id="music" type="range" min="0" max="1" step=".05" value="${g.audio.music}"></label><label>Звуки <input id="effects" type="range" min="0" max="1" step=".05" value="${g.audio.effects}"></label><label>Картинка <select id="quality"><option value="auto">Автоматически</option><option value="low">Легче</option><option value="high">Красивее</option></select></label><div class="panel-buttons"><button id="export-save">Сохранить файл</button><button id="import-save">Загрузить файл</button></div><input class="file-input" id="save-file" type="file" accept=".json,application/json"><p id="backup-status">Весь остров хранится только на этом устройстве. Копия пригодится, если браузер очистит данные.</p><p id="offline-status"></p>`,
+      `<h2>Твой остров</h2><label>Название <input id="world-name" maxlength="24" autocomplete="off"></label><label>Музыка <input id="music" type="range" min="0" max="1" step=".05" value="${g.audio.music}"></label><label>Звуки <input id="effects" type="range" min="0" max="1" step=".05" value="${g.audio.effects}"></label><label>Поворот пальцем <input id="touch-sensitivity" type="range" min=".25" max="3" step=".05" value="${g.input.touchSensitivity}"><small>Медленнее ← → Быстрее</small></label><label>Поворот мышью <input id="mouse-sensitivity" type="range" min=".25" max="3" step=".05" value="${g.input.mouseSensitivity}"></label><label>Картинка <select id="quality"><option value="auto">Автоматически</option><option value="low">Легче</option><option value="high">Красивее</option></select></label><div class="panel-buttons"><button id="export-save">Сохранить файл</button><button id="import-save">Загрузить файл</button></div><input class="file-input" id="save-file" type="file" accept=".json,application/json"><p id="backup-status">Весь остров хранится только на этом устройстве. Копия пригодится, если браузер очистит данные.</p><p id="offline-status"></p>`,
     );
     const name = document.querySelector<HTMLInputElement>("#world-name")!;
     name.value = g.name;
@@ -170,6 +170,14 @@ export class Interface {
     for (const key of ["music", "effects"] as const)
       document.querySelector<HTMLInputElement>("#" + key)!.oninput = (e) => {
         g.audio[key] = Number((e.target as HTMLInputElement).value);
+        void g.save();
+      };
+    for (const [id, key] of [
+      ["touch-sensitivity", "touchSensitivity"],
+      ["mouse-sensitivity", "mouseSensitivity"],
+    ] as const)
+      document.querySelector<HTMLInputElement>("#" + id)!.oninput = (e) => {
+        g.input[key] = Number((e.target as HTMLInputElement).value);
         void g.save();
       };
     const quality = document.querySelector<HTMLSelectElement>("#quality")!;

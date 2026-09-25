@@ -1,3 +1,4 @@
+import { lookDelta } from "./look";
 export class Controls {
   keys = new Set<string>();
   actions = new Set<string>();
@@ -9,6 +10,10 @@ export class Controls {
   breaking = false;
   screen: { x: number; y: number } | null = null;
   touchMode = false;
+  touchSensitivity = 1;
+  mouseSensitivity = 1;
+  pendingYaw = 0;
+  pendingPitch = 0;
   private stick = -1;
   private look = -1;
   private origin = { x: 0, y: 0 };
@@ -96,8 +101,20 @@ export class Controls {
           this.breaking = false;
         }
         if (locked || this.moved) {
-          this.yaw -= dx * 0.003;
-          this.pitch -= dy * 0.003;
+          const delta = lookDelta(
+            dx,
+            dy,
+            !locked,
+            locked ? this.mouseSensitivity : this.touchSensitivity,
+            Math.min(innerWidth, innerHeight),
+          );
+          if (locked) {
+            this.yaw += delta.yaw;
+            this.pitch += delta.pitch;
+          } else {
+            this.pendingYaw += delta.yaw;
+            this.pendingPitch += delta.pitch;
+          }
         }
         this.last = { x: e.clientX, y: e.clientY };
       }
@@ -122,7 +139,12 @@ export class Controls {
     canvas.addEventListener("pointerup", end);
     canvas.addEventListener("pointercancel", end);
   }
-  update() {
+  update(dt = 1 / 60) {
+    const blend = 1 - Math.exp(-50 * dt);
+    this.yaw += this.pendingYaw * blend;
+    this.pitch += this.pendingPitch * blend;
+    this.pendingYaw *= 1 - blend;
+    this.pendingPitch *= 1 - blend;
     if (
       this.look >= 0 &&
       !this.moved &&
@@ -142,6 +164,7 @@ export class Controls {
     this.actions.clear();
     this.breaking = false;
     this.x = this.y = this.power = this.yaw = this.pitch = 0;
+    this.pendingYaw = this.pendingPitch = 0;
     this.look = this.stick = -1;
     this.screen = null;
     document.querySelector<HTMLElement>("#stick")?.setAttribute("hidden", "");

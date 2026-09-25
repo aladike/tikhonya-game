@@ -15,6 +15,8 @@ export interface IslandSave {
   effects: number;
   quality: "auto" | "low" | "high";
   preview?: string;
+  touchSensitivity?: number;
+  mouseSensitivity?: number;
 }
 export function rle(data: Uint8Array) {
   const out: number[] = [];
@@ -111,6 +113,14 @@ export function decodeIsland(raw: string): IslandSave {
     chunks: d.chunks,
     music: Math.max(0, Math.min(1, finite(d.music, 0.4))),
     effects: Math.max(0, Math.min(1, finite(d.effects, 0.7))),
+    touchSensitivity: Math.max(
+      0.25,
+      Math.min(3, finite(d.touchSensitivity, 1)),
+    ),
+    mouseSensitivity: Math.max(
+      0.25,
+      Math.min(3, finite(d.mouseSensitivity, 1)),
+    ),
     quality: ["low", "high"].includes(d.quality) ? d.quality : "auto",
     preview:
       typeof d.preview === "string" &&
