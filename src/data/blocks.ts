@@ -226,6 +226,72 @@ const definitions: Omit<Block, "id">[] = [
     cutout: true,
     material: "grass",
   },
+  {
+    name: "Верстак",
+    color: "#E0A96D",
+    tile: 32,
+    solid: true,
+    material: "wood",
+    special: "bench",
+  },
+  {
+    name: "Печка",
+    color: "#8593AB",
+    tile: 33,
+    solid: true,
+    material: "stone",
+    special: "furnace",
+  },
+  {
+    name: "Сундук",
+    color: "#E0A96D",
+    tile: 34,
+    solid: true,
+    material: "wood",
+    special: "chest",
+  },
+  {
+    name: "Кровать",
+    color: "#FF9CC7",
+    tile: 35,
+    solid: true,
+    material: "wool",
+    shape: "slab",
+    special: "bed",
+  },
+  {
+    name: "Мёд-липучка",
+    color: "#FFD23F",
+    tile: 36,
+    solid: true,
+    material: "wool",
+    special: "honey",
+  },
+  {
+    name: "Мармеладная дорожка",
+    color: "#B983FF",
+    tile: 37,
+    solid: true,
+    material: "wool",
+    special: "jellypath",
+  },
+  {
+    name: "Сонный барабан",
+    color: "#E0A96D",
+    tile: 38,
+    solid: true,
+    material: "wood",
+    special: "drum",
+  },
+  {
+    name: "Зеркало смешинок",
+    color: "#A3ECFF",
+    tile: 39,
+    solid: true,
+    transparent: true,
+    material: "glass",
+    special: "mirror",
+  },
 ];
 export const blocks: Block[] = definitions.map((b, id) => ({ ...b, id }));
 export const block = (id: number) => blocks[id] || blocks[0];
@@ -237,5 +303,5 @@ export const WORLD_SIZE = 256,
 export const index = (x: number, y: number, z: number) =>
   (y * CHUNK + z) * CHUNK + x;
 export function heightOf(id: number) {
-  return id === 22 ? 0.5 : 1;
+  return id === 22 || id === 34 ? 0.5 : 1;
 }

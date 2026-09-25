@@ -1,6 +1,10 @@
+import { decodeSurvival, type SurvivalSave, type Mode } from "./survival.ts";
+import { item } from "../data/items.ts";
 import { WORLD_HEIGHT, CHUNK, blocks } from "../data/blocks.ts";
 export interface IslandSave {
-  version: 1;
+  version: 1 | 2;
+  mode?: Mode;
+  survival?: SurvivalSave;
   kind: "tikhonya-island";
   seed: number;
   name: string;
@@ -61,7 +65,7 @@ export function decodeIsland(raw: string): IslandSave {
   if (
     !d ||
     d.kind !== "tikhonya-island" ||
-    d.version !== 1 ||
+    ![1, 2].includes(d.version) ||
     !Number.isInteger(d.seed) ||
     !d.chunks ||
     typeof d.chunks !== "object" ||
@@ -86,7 +90,11 @@ export function decodeIsland(raw: string): IslandSave {
   const finite = (n: unknown, fallback: number) =>
     typeof n === "number" && Number.isFinite(n) ? n : fallback;
   return {
-    version: 1,
+    version: 2,
+    mode: ["creative", "peaceful", "survival"].includes(d.mode)
+      ? d.mode
+      : "creative",
+    survival: decodeSurvival(d.survival),
     kind: "tikhonya-island",
     seed: d.seed >>> 0,
     name:
@@ -105,7 +113,8 @@ export function decodeIsland(raw: string): IslandSave {
     yaw: finite(d.yaw, 0),
     pitch: Math.max(-1.4, Math.min(1.4, finite(d.pitch, 0))),
     bar: Array.from({ length: 9 }, (_, i) =>
-      Number.isInteger(d.bar?.[i]) && blocks[d.bar[i]] && d.bar[i] > 0
+      Number.isInteger(d.bar?.[i]) &&
+      (item(d.bar[i]).id > 0 || (d.bar[i] === 0 && d.mode !== "creative"))
         ? d.bar[i]
         : i + 1,
     ),

@@ -34,6 +34,6 @@ self.addEventListener('fetch',event=>{
 await writeFile("dist/sw.js", sw);
 await writeFile(
   "dist/release.json",
-  JSON.stringify({ version, generation: 2, stage: 1 }),
+  JSON.stringify({ version, generation: 2, stage: 2 }),
 );
 console.log(`Offline shell: ${files.length} files, version ${version}`);

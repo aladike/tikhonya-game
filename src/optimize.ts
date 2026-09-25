@@ -48,3 +48,51 @@ export function clearGenerated(root: T.Object3D) {
   });
   root.clear();
 }
+
+/** Bake static colored model parts into one draw call; keep animated roots separate. */
+export function batchColored(root: T.Group, exclude: T.Object3D[] = []) {
+  root.updateWorldMatrix(true, true);
+  const inverse = root.matrixWorld.clone().invert();
+  const geometries: T.BufferGeometry[] = [],
+    nodes: T.Mesh[] = [];
+  const visit = (node: T.Object3D) => {
+    if (exclude.includes(node)) return;
+    if (
+      node instanceof T.Mesh &&
+      node.material instanceof T.MeshStandardMaterial
+    ) {
+      const geometry = node.geometry.index
+        ? node.geometry.toNonIndexed()
+        : node.geometry.clone();
+      geometry.applyMatrix4(inverse.clone().multiply(node.matrixWorld));
+      const colors = new Float32Array(
+          geometry.getAttribute("position").count * 3,
+        ),
+        color = node.material.color;
+      for (let i = 0; i < colors.length; i += 3) {
+        colors[i] = color.r;
+        colors[i + 1] = color.g;
+        colors[i + 2] = color.b;
+      }
+      geometry.setAttribute("color", new T.BufferAttribute(colors, 3));
+      geometries.push(geometry);
+      nodes.push(node);
+    } else node.children.forEach(visit);
+  };
+  root.children.forEach(visit);
+  if (!geometries.length) return;
+  const geometry = mergeGeometries(geometries);
+  geometries.forEach((g) => g.dispose());
+  if (!geometry) return;
+  nodes.forEach((n) => {
+    n.removeFromParent();
+    n.geometry.dispose();
+    (n.material as T.Material).dispose();
+  });
+  const mesh = new T.Mesh(
+    geometry,
+    new T.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }),
+  );
+  mesh.castShadow = true;
+  root.add(mesh);
+}

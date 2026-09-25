@@ -1,3 +1,4 @@
+import { bakeLight } from "./light";
 import { generateChunk } from "./generator";
 import { meshChunk } from "./mesher";
 import { index, WORLD_HEIGHT } from "../data/blocks";
@@ -21,10 +22,11 @@ self.onmessage = (
     generated[key] ??= generateChunk(nx, nz, seed);
     return generated[key][index(((x % 16) + 16) % 16, y, ((z % 16) + 16) % 16)];
   };
-  const parts = meshChunk(get, seed).map((p) => ({
+  const parts = meshChunk(get, seed, bakeLight(get)).map((p) => ({
     position: new Float32Array(p.positions),
     normal: new Float32Array(p.normals),
     color: new Float32Array(p.colors),
+    light: new Float32Array(p.lights),
     uv: new Float32Array(p.uvs),
     index: new Uint32Array(p.indices),
   }));
@@ -35,6 +37,7 @@ self.onmessage = (
       p.position.buffer,
       p.normal.buffer,
       p.color.buffer,
+      p.light.buffer,
       p.uv.buffer,
       p.index.buffer,
     );

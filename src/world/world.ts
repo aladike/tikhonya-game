@@ -5,6 +5,7 @@ interface Part {
   position: Float32Array;
   normal: Float32Array;
   color: Float32Array;
+  light: Float32Array;
   uv: Float32Array;
   index: Uint32Array;
 }
@@ -25,6 +26,8 @@ export class VoxelWorld {
   });
   materials: T.MeshStandardMaterial[];
   wind = { value: 0 };
+  daylight = { value: 1 };
+  lightSources = new Map<string, [number, number, number, number]>();
   error = "";
   constructor(
     public scene: T.Scene,
@@ -74,12 +77,34 @@ export class VoxelWorld {
           "#include <begin_vertex>",
           `#include <begin_vertex>
         // Atlas tile 12 is water. Keep glass and soap geometry perfectly still.
-        if (floor(uv.x * 8.) == 4. && floor((1. - uv.y) * 4.) == 1.) {
+        if (floor(uv.x * 8.) == 4. && floor((1. - uv.y) * 8.) == 1.) {
           vec3 p = (modelMatrix * vec4(position, 1.)).xyz;
           transformed.y += sin(wind * 1.4 + p.x * .7 + p.z * .5) * .035;
         }`,
         );
     };
+    this.materials.forEach((material) => {
+      const previous = material.onBeforeCompile.bind(material);
+      material.onBeforeCompile = (shader, renderer) => {
+        previous(shader, renderer);
+        shader.uniforms.daylight = this.daylight;
+        shader.vertexShader =
+          "attribute vec2 light; uniform float daylight;\n" +
+          shader.vertexShader.replace(
+            "#include <color_vertex>",
+            `#include <color_vertex>
+          vec3 skyLight = vec3(max(.12, light.x * daylight));
+          vec3 lampLight = vec3(1., .77, .43) * light.y;
+          vColor.rgb *= max(skyLight, lampLight);`,
+          );
+        shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <emissivemap_fragment>",
+          `#include <emissivemap_fragment>
+          float tile = floor(vMapUv.x * 8.) + floor((1. - vMapUv.y) * 8.) * 8.;
+          if (tile == 18. || tile == 28.) totalEmissiveRadiance += vec3(.7,.4,.13);`,
+        );
+      };
+    });
     scene.add(this.group);
     this.worker.onmessage = (e) => {
       const { cx, cz, data, parts, version } = e.data as {
@@ -106,6 +131,7 @@ export class VoxelWorld {
           );
           geometry.setAttribute("normal", new T.BufferAttribute(p.normal, 3));
           geometry.setAttribute("color", new T.BufferAttribute(p.color, 3));
+          geometry.setAttribute("light", new T.BufferAttribute(p.light, 2));
           geometry.setAttribute("uv", new T.BufferAttribute(p.uv, 2));
           geometry.setIndex(new T.BufferAttribute(p.index, 1));
           geometry.computeBoundingSphere();
@@ -147,20 +173,20 @@ export class VoxelWorld {
     const key = this.key(x, z);
     this.data.get(key)![index(x % 16, y, z % 16)] = id;
     this.changed.add(key);
-    for (const [dx, dz] of [
-      [0, 0],
-      [-1, 0],
-      [1, 0],
-      [0, -1],
-      [0, 1],
-    ]) {
-      const nk = this.key(x + dx, z + dz);
-      if (this.groups.has(nk) || nk === key) {
-        this.versions.set(nk, (this.versions.get(nk) || 0) + 1);
-        this.queue.add(nk);
+    const cx = Math.floor(x / 16),
+      cz = Math.floor(z / 16);
+    for (let dz = -1; dz <= 1; dz++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const nk = `${cx + dx},${cz + dz}`;
+        if (this.groups.has(nk) || nk === key) {
+          this.versions.set(nk, (this.versions.get(nk) || 0) + 1);
+          this.queue.add(nk);
+        }
       }
-    }
     const lightKey = `${x},${y},${z}`;
+    this.lightSources.delete(lightKey);
+    if (block(id).light)
+      this.lightSources.set(lightKey, [x, y, z, block(id).light!]);
     const old = this.lights.get(lightKey);
     old?.removeFromParent();
     this.lights.delete(lightKey);
@@ -241,11 +267,18 @@ export class VoxelWorld {
       this.data.set(key, data);
       this.changed.add(key);
       const [cx, cz] = key.split(",").map(Number);
-      for (let i = 0; i < data.length && this.lights.size < 12; i++)
+      for (let i = 0; i < data.length; i++)
         if (block(data[i]).light) {
           const x = cx * 16 + (i % 16),
             y = Math.floor(i / 256),
             z = cz * 16 + (Math.floor(i / 16) % 16);
+          this.lightSources.set(`${x},${y},${z}`, [
+            x,
+            y,
+            z,
+            block(data[i]).light!,
+          ]);
+          if (this.lights.size >= 12) continue;
           const light = new T.PointLight("#FFC76B", 8, 9, 2);
           light.position.set(x + 0.5, y + 1.3, z + 0.5);
           this.scene.add(light);

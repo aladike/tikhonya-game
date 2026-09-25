@@ -3,7 +3,8 @@ from pathlib import Path
 import random,struct,zlib
 random.seed(731)
 colors=['BDE8FF','B87A4B','6BD34A','B87A4B','F6DB8C','9AA3B5','8593AB','9C6B3F','E0A96D','E0A96D','3FBF5A','B0E7F6','3CC8E8','F2F6FF','E98B76','FF7A91','47C7A5','FFD23F','FFC76B','B983FF','FF5D8F','FFD23F','B983FF','FFFFFF','FFB8D4','8CE8F0','FFAE60','8CDF62','A3ECFF','FF9CC7','FFB347','E8D4FF']
-w,h=128,64
+colors += ['E0A96D','8593AB','DDA15B','FF9CC7','FFC76B','B983FF','E0A96D','B0E7F6']
+w,h=128,128
 pixels=bytearray(w*h*4)
 for tile,hexcolor in enumerate(colors):
  base=tuple(int(hexcolor[i:i+2],16) for i in (0,2,4))
@@ -32,6 +33,19 @@ for tile,hexcolor in enumerate(colors):
    if tile==26 and (x*7+y*11)%19<3:rgb=random.choice([(255,122,145),(71,199,165),(185,131,255)])
    if tile==27 and ((x-5)**2+(y-6)**2<8 or (x-10)**2+(y-6)**2<8 or (x-8)**2+(y-10)**2<8):rgb=(45,142,73)
    if tile==28 and (abs(x-7)+abs(y-7)<4 or x==7 or y==7):rgb=(255,251,181)
+   if tile==32 and (x%5==0 or y%5==0):rgb=(136,82,45)
+   if tile==33 and 3<x<12 and 5<y<13:rgb=(55,45,62) if y<10 else (255,174,60)
+   if tile==34 and (y in (4,5) or x in (0,15)):rgb=(130,77,43)
+   if tile==34 and x in (7,8) and 4<y<10:rgb=(255,232,147)
+   if tile==35 and y<6:rgb=(255,247,232)
+   if tile==36 and (x+y)%7<2:rgb=(242,167,43)
+   if tile==37 and (x-7)**2+(y-7)**2<25:rgb=(245,169,216)
+   if tile==38 and (x in (0,1,14,15) or y in (0,1,14,15)):rgb=(255,210,63)
+   if tile==38 and (x-8)**2+(y-8)**2<9:rgb=(137,79,47)
+   if tile==39:
+    alpha=150
+    if x<2 or x>13 or y<2 or y>13:rgb=(255,210,63);alpha=255
+    if y==9 and 5<=x<=10:rgb=(255,122,145);alpha=255
    i=(((tile//8)*16+y)*w+(tile%8)*16+x)*4
    pixels[i:i+4]=bytes([max(0,min(255,int(v*noise))) for v in rgb]+[alpha])
 raw=b''.join(b'\0'+pixels[y*w*4:(y+1)*w*4] for y in range(h))

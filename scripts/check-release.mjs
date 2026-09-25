@@ -92,7 +92,7 @@ for (const [name, type, options] of [
     assert.equal(file.suggestedFilename(), "tikhonya-island.json");
     const exported = JSON.parse(await readFile(await file.path(), "utf8"));
     assert.equal(exported.kind, "tikhonya-island");
-    assert.equal(exported.version, 1);
+    assert.equal(exported.version, 2);
     await page.locator("#save-file").setInputFiles({
       name: "invalid.json",
       mimeType: "application/json",

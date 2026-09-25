@@ -1,4 +1,4 @@
-import { dayScore } from "../data/music";
+import { dayScore, nightScore } from "../data/music";
 export class IslandAudio {
   context?: AudioContext;
   music = 0.4;
@@ -10,6 +10,16 @@ export class IslandAudio {
   next = 0;
   step = 0;
   pauseUntil = 0;
+  night = false;
+  chase = false;
+  nightMix = 0;
+  chaseMix = 0;
+  lastAudioTime = 0;
+  tracks = [
+    { score: dayScore, step: 0, next: 0, pauseUntil: 0 },
+    { score: nightScore, step: 0, next: 0, pauseUntil: 0 },
+  ];
+  voiceWeight = 1;
   async start() {
     if (!this.context) {
       const ctx = (this.context = new AudioContext()),
@@ -50,6 +60,8 @@ export class IslandAudio {
     const osc = ctx.createOscillator(),
       gain = ctx.createGain(),
       filter = ctx.createBiquadFilter();
+    if (!effect) volume *= this.voiceWeight;
+    if (volume < 0.0001) return;
     const freq = 440 * 2 ** ((midi - 69) / 12);
     osc.frequency.setValueAtTime(freq, at);
     osc.type =
@@ -101,6 +113,8 @@ export class IslandAudio {
       this.note(34, at, 0.15, volume, "bass", effect);
       return;
     }
+    if (!effect) volume *= this.voiceWeight;
+    if (volume < 0.0001) return;
     const source = ctx.createBufferSource(),
       filter = ctx.createBiquadFilter(),
       gain = ctx.createGain();
@@ -136,63 +150,102 @@ export class IslandAudio {
       ctx.currentTime,
       0.05,
     );
-    if (this.next < ctx.currentTime - 0.3) this.next = ctx.currentTime + 0.03;
-    const beat = 60 / dayScore.bpm,
-      eighth = beat / 2;
-    while (this.next < ctx.currentTime + 0.18) {
-      const bar = Math.floor(this.step / 8) % 64,
-        e = this.step % 8,
-        phrase = Math.floor(bar / 8),
-        root = dayScore.roots[bar % 8],
-        minor = bar % 8 === 4 || bar % 8 === 6,
-        third = minor ? 3 : 4,
-        section = Math.floor(bar / 16);
-      if (this.next >= this.pauseUntil) {
-        if (e === 0 || e === 4)
-          this.note(
-            root - 12 + (e === 4 ? 7 : 0),
-            this.next,
-            beat * 0.85,
-            0.14,
-            "bass",
-          );
-        if (e === 0 || e === 3 || e === 6)
-          [0, third, 7].forEach((n, i) =>
+    const dt = Math.min(0.1, Math.max(0, ctx.currentTime - this.lastAudioTime));
+    this.lastAudioTime = ctx.currentTime;
+    this.nightMix +=
+      ((this.night ? 1 : 0) - this.nightMix) * (1 - Math.exp(-dt / 1.2));
+    this.chaseMix +=
+      ((this.chase ? 1 : 0) - this.chaseMix) * (1 - Math.exp(-dt / 0.5));
+    this.tracks.forEach((track, index) => {
+      const score = track.score,
+        isNight = index === 1;
+      this.voiceWeight = isNight ? this.nightMix : 1 - this.nightMix;
+      if (track.next < ctx.currentTime - 0.3)
+        track.next = ctx.currentTime + 0.03;
+      const beat = 60 / score.bpm,
+        eighth = beat / 2;
+      while (track.next < ctx.currentTime + 0.18) {
+        const bar = Math.floor(track.step / 8) % 64,
+          e = track.step % 8,
+          phrase = Math.floor(bar / 8),
+          root = score.roots[bar % 8],
+          minor = isNight || bar % 8 === 4 || bar % 8 === 6,
+          third = minor ? 3 : 4,
+          section = Math.floor(bar / 16);
+        if (track.next >= track.pauseUntil) {
+          if (e === 0 || e === 4)
             this.note(
-              root + 12 + n,
-              this.next + i * 0.014,
-              beat * 0.65,
-              0.033,
+              root - 12 + (e === 4 ? 7 : 0),
+              track.next,
+              beat * 0.85,
+              0.14,
+              "bass",
+            );
+          if (e === 0 || e === 3 || e === 6)
+            [0, third, 7].forEach((n, i) =>
+              this.note(
+                root + 12 + n,
+                track.next + i * 0.014,
+                beat * 0.65,
+                0.033,
+                "pluck",
+              ),
+            );
+          if (e % 2 === 1)
+            this.note(
+              root + 24 + [0, third, 7, 12][(e + phrase) % 4],
+              track.next,
+              eighth * 0.9,
+              0.027,
               "pluck",
-            ),
+            );
+          const motif = score.motifs[(section + Math.floor(bar / 4)) % 4],
+            melody =
+              motif[(bar % 2) * 8 + e] +
+              (isNight ? 57 : 60) +
+              (phrase % 3 === 2 ? 12 : 0);
+          if ((e + bar) % 7 !== 0 && !(section === 0 && bar < 4 && e % 2))
+            this.note(
+              melody,
+              track.next,
+              eighth * 1.6,
+              0.09,
+              isNight
+                ? section % 2
+                  ? "pluck"
+                  : "marimba"
+                : section === 2
+                  ? "flute"
+                  : "marimba",
+            );
+          if (e === 0 || e === 4) this.percussion(track.next, "kick", 0.075);
+          if (e === 2 || e === 6) this.percussion(track.next, "brush", 0.025);
+          if (bar > 7)
+            this.percussion(track.next, "hat", e % 2 ? 0.012 : 0.019);
+        }
+        if (isNight && this.chaseMix > 0.01) {
+          this.percussion(
+            track.next,
+            e % 2 ? "brush" : "kick",
+            0.13 * this.chaseMix,
           );
-        if (e % 2 === 1)
-          this.note(
-            root + 24 + [0, third, 7, 12][(e + phrase) % 4],
-            this.next,
-            eighth * 0.9,
-            0.027,
-            "pluck",
-          );
-        const motif = dayScore.motifs[(section + Math.floor(bar / 4)) % 4],
-          melody = motif[(bar % 2) * 8 + e] + 60 + (phrase % 3 === 2 ? 12 : 0);
-        if ((e + bar) % 7 !== 0 && !(section === 0 && bar < 4 && e % 2))
-          this.note(
-            melody,
-            this.next,
-            eighth * 1.6,
-            0.09,
-            section === 2 ? "flute" : "marimba",
-          );
-        if (e === 0 || e === 4) this.percussion(this.next, "kick", 0.075);
-        if (e === 2 || e === 6) this.percussion(this.next, "brush", 0.025);
-        if (bar > 7) this.percussion(this.next, "hat", e % 2 ? 0.012 : 0.019);
+          if (e % 2 === 0)
+            this.note(
+              root,
+              track.next,
+              eighth * 0.6,
+              0.07 * this.chaseMix,
+              "bass",
+            );
+        }
+        track.next += eighth;
+        track.step++;
+        if (track.step % (64 * 8) === 0) track.pauseUntil = track.next + 7;
       }
-      this.next += eighth;
-      this.step++;
-      if (this.step % (64 * 8) === 0) this.pauseUntil = this.next + 7;
-    }
+    });
+    this.voiceWeight = 1;
   }
+
   material(kind: string, action: "step" | "break" | "place") {
     const ctx = this.context;
     if (!ctx || ctx.state !== "running") return;
@@ -234,6 +287,36 @@ export class IslandAudio {
         "marimba",
         true,
       ),
+    );
+  }
+  creature(kind: "bubul" | "shadow" | "chomper" | "jelly" | "puppy") {
+    const ctx = this.context;
+    if (!ctx) return;
+    const notes = {
+      bubul: [45, 65, 40],
+      shadow: [84, 88, 86],
+      chomper: [38, 43, 34],
+      jelly: [60, 72, 55],
+      puppy: [55, 61],
+    }[kind];
+    notes.forEach((n, i) =>
+      this.note(
+        n,
+        ctx.currentTime + i * 0.1,
+        0.14,
+        0.12,
+        kind === "shadow" ? "flute" : kind === "jelly" ? "bass" : "pluck",
+        true,
+      ),
+    );
+    if (kind === "bubul" || kind === "chomper")
+      this.percussion(ctx.currentTime + 0.1, "brush", 0.06, true);
+  }
+  giggle() {
+    const ctx = this.context;
+    if (!ctx) return;
+    [82, 87, 82, 90].forEach((n, i) =>
+      this.note(n, ctx.currentTime + i * 0.09, 0.08, 0.13, "flute", true),
     );
   }
   pause() {

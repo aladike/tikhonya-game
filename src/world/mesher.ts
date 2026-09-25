@@ -5,6 +5,7 @@ export interface MeshData {
   colors: number[];
   uvs: number[];
   indices: number[];
+  lights: number[];
 }
 const normals = [
   [1, 0, 0],
@@ -55,6 +56,9 @@ const corners = [
 export function meshChunk(
   get: (x: number, y: number, z: number) => number,
   seed = 0,
+  lighting: (x: number, y: number, z: number) => [number, number] = () => [
+    15, 0,
+  ],
 ) {
   const meshes: MeshData[] = Array.from({ length: 3 }, () => ({
     positions: [],
@@ -62,6 +66,7 @@ export function meshChunk(
     colors: [],
     uvs: [],
     indices: [],
+    lights: [],
   }));
   const solid = (x: number, y: number, z: number) => {
     const b = block(get(x, y, z));
@@ -91,6 +96,11 @@ export function meshChunk(
         z + c[2] * scale[2] + offset[2],
       );
       out.normals.push(...normal);
+      const [sky, lamp] = lighting(x + normal[0], y + normal[1], z + normal[2]);
+      out.lights.push(
+        sky / 15,
+        Math.max(lamp, block(get(x, y, z)).light || 0) / 15,
+      );
       let occlusion = 0;
       if (ao) {
         const axes = [0, 1, 2].filter((a) => normal[a] === 0),
@@ -118,7 +128,7 @@ export function meshChunk(
           [0, 1],
         ][i],
         u = ((tile % 8) + uv[0] * 0.98 + 0.01) / 8,
-        v = 1 - (Math.floor(tile / 8) + (1 - uv[1]) * 0.98 + 0.01) / 4;
+        v = 1 - (Math.floor(tile / 8) + (1 - uv[1]) * 0.98 + 0.01) / 8;
       out.uvs.push(u, v);
     });
     out.indices.push(start, start + 1, start + 2, start, start + 2, start + 3);

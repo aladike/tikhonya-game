@@ -1,3 +1,4 @@
+import { Survival } from "./survival";
 import * as T from "three";
 import { batchStatic } from "../optimize";
 import { VoxelWorld } from "../world/world";
@@ -15,6 +16,7 @@ export class IslandGame {
   camera = new T.PerspectiveCamera(68, innerWidth / innerHeight, 0.05, 170);
   renderer: T.WebGLRenderer;
   world: VoxelWorld;
+  survival: Survival;
   input: Controls;
   audio = new IslandAudio();
   particles: Particles;
@@ -41,12 +43,14 @@ export class IslandGame {
   ghost: T.Mesh;
   cracks: T.LineSegments;
   breakTime = 0;
+  miningHintTime = 0;
   breakKey = "";
   lastJump = -10;
   stepTime = 0;
   specialTime = 0;
   saveTime = 0;
   dirty = false;
+  noiseTime = 0;
   hero = new T.Group();
   limbs: T.Mesh[] = [];
   clouds = new T.Group();
@@ -57,8 +61,12 @@ export class IslandGame {
   fpsTime = 0;
   fpsFrames = 0;
   lowFrames = 0;
+  adaptiveLow = false;
   uiTime = 0;
   savePending: Promise<void> = Promise.resolve();
+  allowSave = true;
+  preview = "";
+  previewTime = -100;
   onHud = () => {};
   onPickup = (_id: number, _point: T.Vector3) => {};
   onToast = (_text: string) => {};
@@ -106,6 +114,7 @@ export class IslandGame {
     this.position.set(128.5, elevation(128, 206, seed) + 1.03, 206.5);
     if (saved) {
       this.name = saved.name;
+      this.preview = saved.preview || "";
       this.yaw = saved.yaw;
       this.pitch = saved.pitch;
       this.position.fromArray(saved.position);
@@ -138,6 +147,7 @@ export class IslandGame {
       this.onHud();
     };
     this.particles = new Particles(this.scene);
+    this.survival = new Survival(this, saved);
     const edges = new T.EdgesGeometry(new T.BoxGeometry(1.008, 1.008, 1.008));
     this.outline = new T.LineSegments(
       edges,
@@ -280,6 +290,28 @@ export class IslandGame {
       }),
     );
     this.scene.add(sky);
+    const moon = new T.Mesh(
+      new T.SphereGeometry(5, 12, 8),
+      new T.MeshBasicMaterial({ color: "#FFF1D6" }),
+    );
+    this.scene.add(moon);
+    const starPoints = [];
+    for (let i = 0; i < 180; i++) {
+      const a = i * 2.39996,
+        h = 0.2 + (i % 29) / 35,
+        r = Math.sqrt(1 - h * h) * 110;
+      starPoints.push(Math.sin(a) * r, h * 110, Math.cos(a) * r);
+    }
+    const starGeometry = new T.BufferGeometry();
+    starGeometry.setAttribute(
+      "position",
+      new T.Float32BufferAttribute(starPoints, 3),
+    );
+    const stars = new T.Points(
+      starGeometry,
+      new T.PointsMaterial({ color: "#FFF7E8", size: 0.35 }),
+    );
+    this.scene.add(stars);
     const sea = new T.Mesh(
       new T.PlaneGeometry(700, 700),
       new T.MeshStandardMaterial({
@@ -319,6 +351,29 @@ export class IslandGame {
         this.update(dt);
         this.audio.update();
       }
+      const cycle = this.survival.cycle;
+      this.renderer.shadowMap.enabled =
+        this.quality !== "low" && !this.adaptiveLow && cycle.light > 0.55;
+      this.world.daylight.value = cycle.light;
+      hemi.intensity = 2.5;
+      sun.intensity = 0.35 + cycle.light * 2.35;
+      const dusk = cycle.phase === "sunset" || cycle.phase === "dawn";
+      const top = new T.Color("#1B1450").lerp(
+        new T.Color("#4FB3FF"),
+        (cycle.light - 0.3) / 0.7,
+      );
+      const bottom = new T.Color("#3A2A8C").lerp(
+        new T.Color(dusk ? "#FFB9A6" : "#BDE8FF"),
+        (cycle.light - 0.3) / 0.7,
+      );
+      (sky.material as T.ShaderMaterial).uniforms.top.value.copy(top);
+      (sky.material as T.ShaderMaterial).uniforms.bottom.value.copy(bottom);
+      (this.scene.fog as T.Fog).color.copy(bottom);
+      this.scene.background = bottom;
+      moon.visible = cycle.phase !== "day";
+      moon.position.copy(this.position).add(new T.Vector3(-35, 55, -70));
+      stars.visible = cycle.light < 0.6;
+      stars.position.copy(this.position);
       this.world.update(this.position, this.time);
       this.updateCamera(dt);
       this.hero.visible =
@@ -346,6 +401,7 @@ export class IslandGame {
             (wing.rotation.z = Math.sin(this.time * 14 + i) * (k ? 1 : -1)),
         );
       });
+      this.survival.visualUpdate(dt);
       this.particles.update(this.paused ? 0 : dt);
       if (!document.hidden) this.renderer.render(this.scene, this.camera);
       this.fpsTime += elapsed;
@@ -355,6 +411,7 @@ export class IslandGame {
         this.fpsTime = this.fpsFrames = 0;
         this.lowFrames = this.fps < 30 ? this.lowFrames + 1 : 0;
         if (this.quality === "auto" && this.lowFrames >= 5) {
+          this.adaptiveLow = true;
           this.renderer.setPixelRatio(1);
           this.renderer.shadowMap.enabled = false;
           this.world.radius = 3;
@@ -382,6 +439,7 @@ export class IslandGame {
   }
   setQuality(q: "auto" | "low" | "high") {
     this.quality = q;
+    this.adaptiveLow = false;
     this.renderer.setPixelRatio(
       Math.min(devicePixelRatio, q === "low" ? 1 : q === "high" ? 2 : 1.5),
     );
@@ -406,11 +464,25 @@ export class IslandGame {
   }
   place() {
     const hit = this.pick();
-    if (!hit) return;
+    if (!hit) {
+      this.survival.use();
+      return;
+    }
+    if (
+      !this.survival.creative &&
+      !this.input.move().quiet &&
+      this.survival.interactBuildTarget(hit)
+    )
+      return;
     const x = hit.x + hit.normal.x,
       y = hit.y + hit.normal.y,
       z = hit.z + hit.normal.z,
       id = this.bar[this.selected];
+    if (id === 0) return;
+    if (!block(id).id) {
+      this.survival.use();
+      return;
+    }
     if (
       y < 0 ||
       y >= 64 ||
@@ -424,8 +496,10 @@ export class IslandGame {
       this.onToast("Здесь тесно — шагни чуть в сторону");
       return;
     }
+    if (!this.survival.consumeBlock(id)) return;
     this.world.set(x, y, z, id);
     this.dirty = true;
+    this.noiseTime = 2;
     this.audio.material(block(id).material, "place");
     this.particles.burst(
       new T.Vector3(x + 0.5, y + 0.5, z + 0.5),
@@ -457,8 +531,10 @@ export class IslandGame {
     void this.saveSoon();
   }
   breakBlock(hit: Hit) {
+    if (!this.survival.containerBroken(`${hit.x},${hit.y},${hit.z}`)) return;
     if (!this.world.set(hit.x, hit.y, hit.z, 0)) return;
     this.dirty = true;
+    this.noiseTime = 2;
     const b = block(hit.id),
       at = new T.Vector3(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
     this.particles.burst(at, b.color, 14);
@@ -488,6 +564,7 @@ export class IslandGame {
       );
       this.audio.chime(74);
       this.onToast("Яблочный салют! Дерево сказало спасибо.");
+      if (!this.survival.creative) this.survival.grant(108, 1);
     }
     this.breakTime = 0;
     void this.saveSoon();
@@ -497,6 +574,11 @@ export class IslandGame {
   }
   update(dt: number) {
     this.input.update(dt);
+    this.noiseTime = Math.max(0, this.noiseTime - dt);
+    this.miningHintTime = Math.max(0, this.miningHintTime - dt);
+    this.survival.update(dt);
+    if (this.input.take("KeyQ") || this.input.keys.has("KeyQ"))
+      this.survival.shot();
     this.yaw += this.input.yaw;
     this.pitch = T.MathUtils.clamp(this.pitch + this.input.pitch, -1.4, 1.4);
     this.input.yaw = this.input.pitch = 0;
@@ -511,6 +593,7 @@ export class IslandGame {
     if (this.input.take("F5")) this.thirdPerson = !this.thirdPerson;
     if (this.input.take("KeyF")) {
       const h = this.pick();
+      if (this.survival.interact(h)) return;
       if (h && block(h.id).special) {
         this.audio.chime(68);
         this.particles.burst(
@@ -523,7 +606,7 @@ export class IslandGame {
     }
     const jump = this.input.take("Space");
     if (jump) {
-      if (this.time - this.lastJump < 0.35) {
+      if (this.survival.creative && this.time - this.lastJump < 0.35) {
         this.flying = !this.flying;
         this.velocity.y = 0;
         this.onToast(
@@ -639,14 +722,25 @@ export class IslandGame {
         this.breakTime = 0;
         this.breakKey = key;
       }
-      if (this.input.breaking) {
+      const breakDuration = this.survival.miningTime(h.id);
+      if (
+        this.input.breaking &&
+        !Number.isFinite(breakDuration) &&
+        this.miningHintTime <= 0
+      ) {
+        this.miningHintTime = 3;
+        this.onToast(
+          "Камню нужна кирка — сделай её в книге рецептов и выбери внизу",
+        );
+      }
+      if (this.input.breaking && Number.isFinite(breakDuration)) {
         this.breakTime += dt;
         this.cracks.position.copy(this.outline.position);
         this.cracks.geometry.setDrawRange(
           0,
-          Math.max(6, Math.floor((this.breakTime / 0.2) * 144)),
+          Math.max(6, Math.floor((this.breakTime / breakDuration) * 144)),
         );
-        if (this.breakTime >= 0.2) {
+        if (this.breakTime >= breakDuration) {
           this.breakBlock(h);
           navigator.vibrate?.(12);
         }
@@ -705,6 +799,10 @@ export class IslandGame {
         if (delta.length() < 10)
           d.mesh.position.addScaledVector(delta, Math.min(1, dt * (3 + d.age)));
         if (delta.length() < 0.45) {
+          if (!this.survival.creative && this.survival.grant(d.id, 1) > 0) {
+            d.age = 0.5;
+            continue;
+          }
           this.audio.material("glass", "step");
           this.onPickup(d.id, d.mesh.position.clone().project(this.camera));
           this.particles.burst(d.mesh.position, block(d.id).color, 4);
@@ -718,7 +816,7 @@ export class IslandGame {
           d.mesh.geometry.dispose();
           (d.mesh.material as T.Material).dispose();
           this.drops.splice(i, 1);
-        } else if (d.age > 20) {
+        } else if (d.age > 20 && this.survival.creative) {
           // Creative materials are unlimited; distant visual drops must not
           // accumulate GPU objects after the player flies away.
           d.mesh.removeFromParent();
@@ -790,12 +888,45 @@ export class IslandGame {
       eye.clone().add(new T.Vector3(0, 0, -2).applyQuaternion(viewRotation)),
     );
   }
+  dropItem(id: number, at: T.Vector3) {
+    const mesh = new T.Mesh(
+      new T.BoxGeometry(0.25, 0.25, 0.25),
+      new T.MeshStandardMaterial({
+        color: id >= 100 ? "#FFD23F" : block(id).color,
+        emissive: id >= 100 ? "#805517" : "#000000",
+      }),
+    );
+    mesh.position.copy(at);
+    this.scene.add(mesh);
+    this.drops.push({ mesh, id, age: 0, velocity: new T.Vector3(0, 2, 0) });
+  }
   snapshot(): IslandSave {
+    if (
+      !document.hidden &&
+      (!this.preview || this.time - this.previewTime > 30)
+    ) {
+      try {
+        this.renderer.render(this.scene, this.camera);
+        const canvas = document.createElement("canvas");
+        canvas.width = 160;
+        canvas.height = 90;
+        canvas
+          .getContext("2d")
+          ?.drawImage(this.renderer.domElement, 0, 0, 160, 90);
+        this.preview = canvas.toDataURL("image/webp", 0.65);
+        this.previewTime = this.time;
+      } catch {
+        /* A thumbnail must never prevent saving the island. */
+      }
+    }
     const chunks: Record<string, number[]> = {};
     for (const key of this.world.changed)
       chunks[key] = rle(this.world.data.get(key)!);
     return {
-      version: 1,
+      version: 2,
+      preview: this.preview,
+      mode: this.survival.mode,
+      survival: this.survival.snapshot(),
       kind: "tikhonya-island",
       seed: this.world.seed,
       name: this.name,
@@ -814,6 +945,7 @@ export class IslandGame {
     };
   }
   save() {
+    if (!this.allowSave) return this.savePending;
     const status = document.querySelector("#save-status");
     if (status) status.textContent = "Сохраняем остров…";
     const data = this.snapshot();

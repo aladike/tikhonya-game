@@ -212,7 +212,7 @@ h1 small {
   height: 32px;
   image-rendering: pixelated;
   background-image: url("/atlas.png");
-  background-size: 256px 128px;
+  background-size: 256px 256px;
   border-radius: 3px;
   filter: drop-shadow(2px 3px 0 #3b2a4a22);
 }
@@ -728,4 +728,121 @@ h1 small {
   position: fixed;
   pointer-events: none;
   z-index: 15;
+}
+.item-icon {
+  font-size: 28px;
+  display: inline-block;
+  line-height: 1.2;
+}
+.empty-slot {
+  font-size: 28px;
+  opacity: 0.4;
+}
+.survival-status {
+  position: fixed;
+  top: 118px;
+  right: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+  pointer-events: none;
+}
+.survival-status span,
+.survival-status strong {
+  background: #fff7e8db;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 14px;
+}
+.survival-status strong {
+  color: #967209;
+  letter-spacing: 3px;
+}
+.bag-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 5px;
+}
+.bag-slot {
+  position: relative;
+  min-height: 48px;
+  padding: 4px;
+}
+.bag-slot:nth-child(-n + 9) {
+  background: #f6db8c;
+}
+.bag-slot.selected {
+  outline: 3px solid #ff7a59;
+}
+.bag-slot small {
+  position: absolute;
+  right: 3px;
+  bottom: 0;
+}
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 9px;
+}
+.recipe-grid button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+}
+.recipe-grid small {
+  width: 100%;
+  font-size: 12px;
+}
+.recipe-grid button:disabled {
+  opacity: 0.5;
+}
+.world-list {
+  display: grid;
+  gap: 10px;
+}
+.world-list button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.world-list img {
+  width: 120px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+#worlds {
+  margin-top: 12px;
+  font-size: 15px;
+}
+@media (max-height: 500px) {
+  .survival-status {
+    top: 91px;
+    right: 12px;
+  }
+  .survival-status span,
+  .survival-status strong {
+    font-size: 11px;
+    padding: 2px 7px;
+  }
+  .start-card {
+    padding: 12px 24px;
+  }
+  .start-card .sparkle {
+    display: none;
+  }
+  #worlds {
+    padding: 8px;
+    margin-top: 5px;
+  }
+  .bag-slot .tile {
+    transform: scale(0.8);
+  }
+}
+
+#recovery-compass:empty {
+  display: none;
 }
