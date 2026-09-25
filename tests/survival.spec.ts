@@ -111,9 +111,24 @@ test("night bubbles capture a monster and award a collectible trophy", async ({
   }
   await expect
     .poll(() =>
-      page.evaluate(() =>
-        (window as any).__island.survival.inventory.count(111),
-      ),
+      page.evaluate(() => {
+        const g = (window as any).__island;
+        return (
+          g.survival.inventory.count(111) +
+          g.drops.filter((d: any) => d.id === 111).length
+        );
+      }),
+    )
+    .toBe(1);
+  // Software rendering on the Linux runner can run at 2 FPS. The game caps
+  // simulation steps for collision safety, so pickup animation needs more wall time.
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          (window as any).__island.survival.inventory.count(111),
+        ),
+      { timeout: process.env.CI ? 30000 : 5000 },
     )
     .toBe(1);
   await page.screenshot({
