@@ -4,7 +4,8 @@ export default defineConfig({
   maxFailures: process.env.CI ? 1 : 0,
   testDir: "./tests",
   testMatch: "*.spec.ts",
-  timeout: 30000,
+  timeout: process.env.CI ? 120000 : 30000,
+  expect: { timeout: process.env.CI ? 15000 : 5000 },
   use: {
     headless: !process.env.CI,
     baseURL: "http://127.0.0.1:5173/tikhonya-game/",

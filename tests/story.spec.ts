@@ -27,6 +27,7 @@ test("four gifts unlock friends, helper puzzles and the treehouse", async ({
       await page.keyboard.press("KeyE");
       await expect(page.locator("#action-label")).toHaveText("Взять подарок");
     }
+    await expect(page.locator("#action-label")).toHaveText("Взять подарок");
     await page.keyboard.press("KeyE");
     await expect(page.locator("#objective")).toContainText("Подари");
     await page.evaluate(() => {
