@@ -24,9 +24,12 @@ export function elevation(x: number, z: number, seed: number) {
   const mountain = Math.exp(-(dx * dx + dz * dz) / 850) * 28;
   const hills =
     noise(x / 23, z / 23, seed) * 7 + noise(x / 9, z / 9, seed + 7) * 2;
+  const natural = 4 + Math.max(0, coast) * (6 + hills + mountain);
+  const beachDistance = Math.hypot(x - 128, z - 206),
+    blend = Math.max(0, Math.min(1, (beachDistance - 9) / 8));
   return Math.max(
     2,
-    Math.min(55, Math.floor(4 + Math.max(0, coast) * (6 + hills + mountain))),
+    Math.min(55, Math.floor(10 * (1 - blend) + natural * blend)),
   );
 }
 export function generateChunk(cx: number, cz: number, seed: number) {
@@ -81,7 +84,7 @@ export function generateChunk(cx: number, cz: number, seed: number) {
         hash(gx, gz, seed + 4) > 0.34 ||
         h <= SEA + 2 ||
         h > 30 ||
-        Math.hypot(x - 128, z - 182) < 12
+        Math.hypot(x - 128, z - 206) < 12
       )
         continue;
       for (let y = h + 1; y < h + 6; y++) set(x, y, z, 6);
@@ -110,6 +113,20 @@ export function generateChunk(cx: number, cz: number, seed: number) {
     for (let y = h + 1; y <= h + 5; y++)
       if (x === 143 || x === 149 || y === h + 5) set(x, y, 180, 5);
   }
+  const heart = [
+    "01100110",
+    "11111111",
+    "11111111",
+    "01111110",
+    "00111100",
+    "00011000",
+  ];
+  heart.forEach((row, zz) =>
+    [...row].forEach((c, xx) => {
+      if (c === "1") set(120 + xx, 10, 209 + zz, 13);
+    }),
+  );
+  set(132, 11, 205, 25);
   return data;
 }
 export function inWorld(x: number, y: number, z: number) {

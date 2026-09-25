@@ -24,6 +24,7 @@ export class IslandGame {
   yaw = 0;
   pitch = -0.15;
   thirdPerson = false;
+  wasThirdPerson = false;
   flying = false;
   grounded = false;
   swimming = false;
@@ -59,6 +60,7 @@ export class IslandGame {
   uiTime = 0;
   savePending: Promise<void> = Promise.resolve();
   onHud = () => {};
+  onPickup = (_id: number, _point: T.Vector3) => {};
   onToast = (_text: string) => {};
   onPause = () => {};
   onInventory = () => {};
@@ -72,7 +74,7 @@ export class IslandGame {
       canvas,
       antialias: true,
       powerPreference: "high-performance",
-      preserveDrawingBuffer: true,
+      preserveDrawingBuffer: false,
     });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
     this.renderer.setSize(innerWidth, innerHeight);
@@ -80,7 +82,7 @@ export class IslandGame {
     this.renderer.toneMapping = T.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.22;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = T.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = T.PCFShadowMap;
     this.scene.background = new T.Color("#4FB3FF");
     this.scene.fog = new T.Fog("#BDE8FF", 45, 94);
     const hemi = new T.HemisphereLight("#FFF1D6", "#5B6BB5", 2.5);
@@ -101,7 +103,7 @@ export class IslandGame {
     this.scene.add(sun, sun.target);
     const seed = saved?.seed ?? crypto.getRandomValues(new Uint32Array(1))[0];
     this.world = new VoxelWorld(this.scene, seed, atlas);
-    this.position.set(128.5, elevation(128, 182, seed) + 1.03, 182.5);
+    this.position.set(128.5, elevation(128, 206, seed) + 1.03, 206.5);
     if (saved) {
       this.name = saved.name;
       this.yaw = saved.yaw;
@@ -317,7 +319,11 @@ export class IslandGame {
       }
       this.world.update(this.position, this.time);
       this.updateCamera(dt);
-      this.hero.visible = this.thirdPerson;
+      this.hero.visible =
+        this.thirdPerson &&
+        this.camera.position.distanceTo(
+          this.position.clone().add(new T.Vector3(0, 1.3, 0)),
+        ) > 1.5;
       this.hero.position.copy(this.position);
       this.hero.rotation.y = this.yaw;
       sky.position.copy(this.position);
@@ -363,6 +369,7 @@ export class IslandGame {
     this.started = true;
     this.paused = false;
     await this.audio.start();
+    void this.save();
   }
   pause() {
     this.paused = true;
@@ -601,7 +608,7 @@ export class IslandGame {
     this.position.z = T.MathUtils.clamp(this.position.z, 0.35, 255.65);
     this.position.y = Math.min(85, this.position.y);
     if (this.position.y < -8) {
-      this.position.set(128.5, elevation(128, 182, this.world.seed) + 2, 182.5);
+      this.position.set(128.5, elevation(128, 206, this.world.seed) + 2, 206.5);
       this.velocity.set(0, 0, 0);
     }
     this.target = this.pick();
@@ -669,6 +676,10 @@ export class IslandGame {
     );
     if (this.specialTime <= 0 && under.special) {
       this.specialTime = 1.6;
+      if (under.special === "bubbles")
+        this.particles.bubbleBurst(
+          this.position.clone().add(new T.Vector3(0, 0.5, 0)),
+        );
       this.audio.chime(under.special === "shell" ? 69 : 76);
       this.particles.burst(
         this.position.clone().add(new T.Vector3(0, 0.5, 0)),
@@ -689,10 +700,11 @@ export class IslandGame {
           .clone()
           .add(new T.Vector3(0, 1, 0))
           .sub(d.mesh.position);
-        if (delta.length() < 7)
+        if (delta.length() < 10)
           d.mesh.position.addScaledVector(delta, Math.min(1, dt * (3 + d.age)));
         if (delta.length() < 0.45) {
           this.audio.material("glass", "step");
+          this.onPickup(d.id, d.mesh.position.clone().project(this.camera));
           this.particles.burst(d.mesh.position, block(d.id).color, 4);
           document
             .querySelector(`[data-slot="${this.selected}"]`)
@@ -700,6 +712,13 @@ export class IslandGame {
               [{ transform: "scale(1.14)" }, { transform: "scale(1)" }],
               200,
             );
+          d.mesh.removeFromParent();
+          d.mesh.geometry.dispose();
+          (d.mesh.material as T.Material).dispose();
+          this.drops.splice(i, 1);
+        } else if (d.age > 20) {
+          // Creative materials are unlimited; distant visual drops must not
+          // accumulate GPU objects after the player flies away.
           d.mesh.removeFromParent();
           d.mesh.geometry.dispose();
           (d.mesh.material as T.Material).dispose();
@@ -729,29 +748,44 @@ export class IslandGame {
     this.camera.rotation.set(this.pitch, this.yaw, 0);
     if (!this.thirdPerson) {
       this.camera.position.copy(eye);
+      this.wasThirdPerson = false;
       return;
     }
-    const back = new T.Vector3(0, 1.2, 5).applyAxisAngle(
-      new T.Vector3(0, 1, 0),
-      this.yaw,
-    );
+    const viewRotation = this.camera.quaternion.clone();
+    const back = new T.Vector3(0, 1.2, 5).applyQuaternion(viewRotation);
     const hit = raycast(
       eye,
       back.clone().normalize(),
-      this.world.get.bind(this.world),
+      (x, y, z) => {
+        const id = this.world.get(x, y, z);
+        return block(id).solid ? id : 0;
+      },
       back.length(),
     );
     if (hit) back.setLength(Math.max(0.3, hit.distance - 0.2));
-    this.camera.position.lerp(eye.clone().add(back), 1 - Math.exp(-dt * 12));
+    const desired = eye.clone().add(back);
+    if (!this.wasThirdPerson) this.camera.position.copy(desired);
+    else this.camera.position.lerp(desired, 1 - Math.exp(-dt * 12));
+    this.wasThirdPerson = true;
+    const actual = this.camera.position.clone().sub(eye),
+      clip = raycast(
+        eye,
+        actual.clone().normalize(),
+        (x, y, z) => {
+          const id = this.world.get(x, y, z);
+          return block(id).solid ? id : 0;
+        },
+        actual.length(),
+      );
+    if (clip)
+      this.camera.position
+        .copy(eye)
+        .addScaledVector(
+          actual.normalize(),
+          Math.max(0.3, clip.distance - 0.25),
+        );
     this.camera.lookAt(
-      eye
-        .clone()
-        .add(
-          new T.Vector3(0, 0, -2).applyAxisAngle(
-            new T.Vector3(0, 1, 0),
-            this.yaw,
-          ),
-        ),
+      eye.clone().add(new T.Vector3(0, 0, -2).applyQuaternion(viewRotation)),
     );
   }
   snapshot(): IslandSave {
@@ -767,7 +801,7 @@ export class IslandGame {
       position: this.position.toArray() as [number, number, number],
       yaw: this.yaw,
       pitch: this.pitch,
-      bar: this.bar,
+      bar: [...this.bar],
       selected: this.selected,
       chunks,
       music: this.audio.music,

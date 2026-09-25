@@ -9,6 +9,15 @@ export function overlaps(
   z: number,
   id = 1,
 ) {
+  if (id === 23) {
+    const xOverlap = position.x + HALF > x && position.x - HALF < x + 1,
+      zOverlap = position.z + HALF > z && position.z - HALF < z + 1;
+    if (!xOverlap || !zOverlap || position.y + HEIGHT <= y) return false;
+    return (
+      position.y < y + 0.5 ||
+      (position.z + HALF > z + 0.5 && position.y < y + 1)
+    );
+  }
   return (
     position.x + HALF > x &&
     position.x - HALF < x + 1 &&
@@ -54,6 +63,18 @@ export function moveAxis(
     position[axis] += part;
     if (collides(position, get)) {
       position[axis] -= part;
+      // Resolve to the contact surface, rather than hovering up to .15 m above
+      // it. Reliable contact is also needed by spring blocks and half-steps.
+      const origin = position[axis];
+      let safe = 0,
+        blocked = 1;
+      for (let n = 0; n < 12; n++) {
+        const middle = (safe + blocked) / 2;
+        position[axis] = origin + part * middle;
+        if (collides(position, get)) blocked = middle;
+        else safe = middle;
+      }
+      position[axis] = origin + part * safe;
       return false;
     }
   }

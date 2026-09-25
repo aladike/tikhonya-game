@@ -43,8 +43,10 @@ test("AABB motion does not tunnel through a voxel and allows half-height geometr
   assert.equal(moveAxis(p, "x", 3, get), false);
   assert.ok(p.x < 0.72);
   assert.equal(
-    collides({ x: 1.5, y: 1.51, z: 1.5 }, () => 22),
-    true,
+    collides({ x: 1.5, y: 1.51, z: 1.5 }, (x, y, z) =>
+      x === 1 && y === 1 && z === 1 ? 22 : 0,
+    ),
+    false,
   );
 });
 test("RLE round trip and save validation reject oversized or obsolete formats", () => {
@@ -78,4 +80,13 @@ test("creative catalogue includes required materials, flowers, functional light 
   assert.equal(blocks[16].light, 15);
   assert.ok(blocks[17].bounce! > 10);
   assert.equal(blocks.filter((b) => b.shape === "flower").length, 4);
+});
+
+test("vertical contact resolves close enough to trigger floor interactions", () => {
+  const p = { x: 1.5, y: 4.1, z: 1.5 };
+  assert.equal(
+    moveAxis(p, "y", -4, (_x, y, _z) => (y === 1 ? 17 : 0)),
+    false,
+  );
+  assert.ok(p.y >= 2 && p.y < 2.001);
 });

@@ -10,6 +10,29 @@ export class Interface {
   toastTimer = 0;
   instructions = 0;
   constructor(public game: IslandGame) {
+    game.onPickup = (id, point) => {
+      const el = document.createElement("div");
+      el.className = "pickup";
+      el.innerHTML = tile(id);
+      el.style.left = (point.x * 0.5 + 0.5) * innerWidth + "px";
+      el.style.top = (-point.y * 0.5 + 0.5) * innerHeight + "px";
+      document.body.append(el);
+      const target = document
+        .querySelector(`[data-slot="${game.selected}"]`)!
+        .getBoundingClientRect();
+      const from = el.getBoundingClientRect();
+      const animation = el.animate(
+        [
+          { transform: "translate(0,0) scale(1)", opacity: 1 },
+          {
+            transform: `translate(${target.x - from.x + 10}px,${target.y - from.y + 10}px) scale(.5)`,
+            opacity: 0,
+          },
+        ],
+        { duration: 450, easing: "ease-in" },
+      );
+      animation.onfinish = () => el.remove();
+    };
     game.onToast = (text) => this.toast(text);
     game.onHud = () => this.hud();
     game.onPause = () => {
@@ -72,6 +95,8 @@ export class Interface {
         game.flying ? "Лети! Прыжок — выше, присесть — ниже" : "Полёт выключен",
       );
     };
+    document.querySelector<HTMLButtonElement>("#debug-items")!.onclick = () =>
+      this.inventory();
     this.renderBar();
     this.hud();
   }
@@ -235,7 +260,8 @@ export class Interface {
     const debug = document.querySelector<HTMLElement>("#debug")!;
     if (new URLSearchParams(location.search).has("debug")) {
       debug.hidden = false;
-      debug.textContent = `${Math.round(g.fps)} FPS · ${g.renderer.info.render.calls} draw · день 10:00 · ${g.world.groups.size} чанков · ${Math.round(g.position.x)},${Math.round(g.position.y)},${Math.round(g.position.z)} · блоки ∞`;
+      debug.querySelector("span")!.textContent =
+        `${Math.round(g.fps)} FPS · ${g.renderer.info.render.calls} draw · день 10:00 · ${g.world.groups.size} чанков · ${Math.round(g.position.x)},${Math.round(g.position.y)},${Math.round(g.position.z)} · блоки ∞`;
     }
   }
 }

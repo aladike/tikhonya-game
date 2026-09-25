@@ -2,6 +2,8 @@ import * as T from "three";
 export class Particles {
   mesh: T.InstancedMesh;
   dummy = new T.Object3D();
+  bubbles: T.InstancedMesh;
+  bubbleData: { p: T.Vector3; life: number }[] = [];
   particles: {
     p: T.Vector3;
     v: T.Vector3;
@@ -18,6 +20,21 @@ export class Particles {
     this.mesh.count = 0;
     this.mesh.frustumCulled = false;
     scene.add(this.mesh);
+    this.bubbles = new T.InstancedMesh(
+      new T.IcosahedronGeometry(0.16, 1),
+      new T.MeshStandardMaterial({
+        color: "#b5efff",
+        transparent: true,
+        opacity: 0.42,
+        metalness: 0.15,
+        roughness: 0.1,
+        depthWrite: false,
+      }),
+      32,
+    );
+    this.bubbles.count = 0;
+    this.bubbles.frustumCulled = false;
+    scene.add(this.bubbles);
   }
   burst(position: T.Vector3, color: string, count = 12, festive = false) {
     for (let i = 0; i < count; i++) {
@@ -37,7 +54,41 @@ export class Particles {
       });
     }
   }
+  bubbleBurst(position: T.Vector3) {
+    for (let i = 0; i < 10; i++) {
+      if (this.bubbleData.length >= 32) this.bubbleData.shift();
+      this.bubbleData.push({
+        p: position
+          .clone()
+          .add(new T.Vector3(Math.sin(i) * 0.7, 0, Math.cos(i) * 0.7)),
+        life: 2 + i * 0.1,
+      });
+    }
+  }
   update(dt: number) {
+    for (let i = this.bubbleData.length - 1; i >= 0; i--) {
+      const b = this.bubbleData[i];
+      b.life -= dt;
+      b.p.y += dt * 0.9;
+      b.p.x += Math.sin(b.life * 3 + i) * dt * 0.1;
+      if (b.life <= 0) this.bubbleData.splice(i, 1);
+    }
+    this.bubbles.count = this.bubbleData.length;
+    this.bubbleData.forEach((b, i) => {
+      this.dummy.position.copy(b.p);
+      this.dummy.scale.setScalar(
+        Math.min(1, b.life * 3) * (1 + (i % 3) * 0.25),
+      );
+      this.dummy.updateMatrix();
+      this.bubbles.setMatrixAt(i, this.dummy.matrix);
+      this.bubbles.setColorAt(
+        i,
+        new T.Color(["#ffc6e7", "#b9efff", "#fff4b3"][i % 3]),
+      );
+    });
+    this.bubbles.instanceMatrix.needsUpdate = true;
+    if (this.bubbles.instanceColor)
+      this.bubbles.instanceColor.needsUpdate = true;
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= dt;

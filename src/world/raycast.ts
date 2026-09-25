@@ -46,7 +46,7 @@ export function raycast(
   let normal = { x: 0, y: 0, z: 0 };
   for (let i = 0; i < 400 && distance <= max; i++) {
     const id = get(x, y, z);
-    if (id && id !== 10) return { x, y, z, normal, distance, id };
+    if (id) return { x, y, z, normal, distance, id };
     if (t.x < t.y && t.x < t.z) {
       distance = t.x;
       t.x += delta.x;

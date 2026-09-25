@@ -723,3 +723,9 @@ h1 small {
     height: 60px;
   }
 }
+
+.pickup {
+  position: fixed;
+  pointer-events: none;
+  z-index: 15;
+}

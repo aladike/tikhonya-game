@@ -42,10 +42,13 @@ test("phone landscape supports simultaneous move, look and jump", async ({
     type: "touchEnd",
     touchPoints: [],
   });
+  const groundY = await page.evaluate(
+    () => (window as any).__island.position.y,
+  );
   await page.locator("#jump").tap();
   await expect
     .poll(() => page.evaluate(() => (window as any).__island.position.y))
-    .toBeGreaterThan(0);
+    .toBeGreaterThan(groundY + 0.08);
   await page.screenshot({ path: "test-results/phone-landscape.png" });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".rotate-hint")).toBeVisible();

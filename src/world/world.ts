@@ -66,6 +66,20 @@ export class VoxelWorld {
           "#include <begin_vertex>\ntransformed.x += sin(wind + position.x * .9 + position.z) * .025;",
         );
     };
+    this.materials[2].onBeforeCompile = (shader) => {
+      shader.uniforms.wind = this.wind;
+      shader.vertexShader =
+        "uniform float wind;\n" +
+        shader.vertexShader.replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+        // Atlas tile 12 is water. Keep glass and soap geometry perfectly still.
+        if (floor(uv.x * 8.) == 4. && floor((1. - uv.y) * 4.) == 1.) {
+          vec3 p = (modelMatrix * vec4(position, 1.)).xyz;
+          transformed.y += sin(wind * 1.4 + p.x * .7 + p.z * .5) * .035;
+        }`,
+        );
+    };
     scene.add(this.group);
     this.worker.onmessage = (e) => {
       const { cx, cz, data, parts, version } = e.data as {
@@ -226,6 +240,17 @@ export class VoxelWorld {
     for (const [key, data] of Object.entries(chunks)) {
       this.data.set(key, data);
       this.changed.add(key);
+      const [cx, cz] = key.split(",").map(Number);
+      for (let i = 0; i < data.length && this.lights.size < 12; i++)
+        if (block(data[i]).light) {
+          const x = cx * 16 + (i % 16),
+            y = Math.floor(i / 256),
+            z = cz * 16 + (Math.floor(i / 16) % 16);
+          const light = new T.PointLight("#FFC76B", 8, 9, 2);
+          light.position.set(x + 0.5, y + 1.3, z + 0.5);
+          this.scene.add(light);
+          this.lights.set(`${x},${y},${z}`, light);
+        }
     }
   }
   getSolid(x: number, y: number, z: number) {

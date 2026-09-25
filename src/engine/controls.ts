@@ -41,7 +41,11 @@ export class Controls {
       { passive: false },
     );
     canvas.addEventListener("pointerdown", (e) => {
-      try { canvas.setPointerCapture(e.pointerId); } catch { /* Synthetic accessibility events may not own a pointer. */ }
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        /* Synthetic accessibility events may not own a pointer. */
+      }
       this.touchMode = e.pointerType !== "mouse";
       if (!this.touchMode) {
         if (e.button === 0) {

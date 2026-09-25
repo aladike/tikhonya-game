@@ -89,8 +89,33 @@ for (const [name, type, options] of [
     await page.locator("#export-save").click();
     const file = await downloading;
     assert.equal(file.suggestedFilename(), "tikhonya-island.json");
+    const exported = JSON.parse(await readFile(await file.path(), "utf8"));
+    assert.equal(exported.kind, "tikhonya-island");
+    assert.equal(exported.version, 1);
+    await page.locator("#save-file").setInputFiles({
+      name: "invalid.json",
+      mimeType: "application/json",
+      buffer: Buffer.from('{"version":999}'),
+    });
+    await page
+      .getByText("Этот файл не похож на сохранение блочного острова.")
+      .waitFor();
+    exported.name = "Мой замок";
+    await page.locator("#save-file").setInputFiles({
+      name: "island.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(JSON.stringify(exported)),
+    });
+    await page
+      .getByRole("button", { name: "Продолжить строить", exact: true })
+      .click();
+    assert.equal(await page.locator("#world-label").textContent(), "Мой замок");
+    await page.getByRole("button", { name: "Настройки", exact: true }).click();
+
     await page.getByRole("button", { name: "Закрыть", exact: true }).click();
-    await page.waitForFunction(()=>document.querySelector("#save-status")?.textContent?.includes("✓"));
+    await page.waitForFunction(() =>
+      document.querySelector("#save-status")?.textContent?.includes("✓"),
+    );
     // Stop the actual origin: WebKit 1.63 has a confirmed setOffline/SW emulation bug (#42775).
     if (!remote) {
       await stopServer();
@@ -115,7 +140,7 @@ for (const [name, type, options] of [
     assert.deepEqual(errors, []);
     assert.deepEqual(foreign, []);
     console.log(
-      `${name}: ${remote ? "published reload" : "origin stopped, offline reload"}, backup export, settings retained, no external requests: PASS`,
+      `${name}: ${remote ? "published reload" : "origin stopped, offline reload"}, backup export/import validation, settings retained, no external requests: PASS`,
     );
   } finally {
     await browser.close();
