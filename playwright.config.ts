@@ -1,0 +1,2 @@
+import { defineConfig, devices } from '@playwright/test';
+export default defineConfig({workers:1,testDir:'./tests',testMatch:'*.spec.ts',timeout:30000,use:{baseURL:'http://127.0.0.1:5173/tikhonya-game/',trace:'retain-on-failure'},projects:[{name:'chromium',use:{...devices['Desktop Chrome'],launchOptions:{args:['--use-angle=swiftshader','--enable-webgl']}}},{name:'webkit',use:{...devices['iPad (gen 7) landscape']}}],webServer:{command:'npm run dev',url:'http://127.0.0.1:5173/tikhonya-game/',reuseExistingServer:true}});

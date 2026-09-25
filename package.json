@@ -11,13 +11,15 @@
     "lint": "eslint src",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "prepare": "git config core.hooksPath .githooks",
-    "check:secrets": "gitleaks dir . --redact --no-banner"
+    "check:secrets": "gitleaks dir . --redact --no-banner",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "three": "0.186.1"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.63.0",
     "@types/three": "0.186.0",
     "eslint": "10.11.0",
     "typescript": "6.0.3",
