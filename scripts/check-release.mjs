@@ -75,7 +75,7 @@ for (const [name, type, options] of [
     });
     await page.goto(target);
     await page
-      .getByRole("button", { name: "Отправиться в приключение" })
+      .getByRole("button", { name: /Начать строить|Продолжить строить/ })
       .click();
     await page.waitForFunction(
       () => !!navigator.serviceWorker.controller,
@@ -88,8 +88,9 @@ for (const [name, type, options] of [
     const downloading = page.waitForEvent("download");
     await page.locator("#export-save").click();
     const file = await downloading;
-    assert.equal(file.suggestedFilename(), "tikhonya-adventure.json");
+    assert.equal(file.suggestedFilename(), "tikhonya-island.json");
     await page.getByRole("button", { name: "Закрыть", exact: true }).click();
+    await page.waitForFunction(()=>document.querySelector("#save-status")?.textContent?.includes("✓"));
     // Stop the actual origin: WebKit 1.63 has a confirmed setOffline/SW emulation bug (#42775).
     if (!remote) {
       await stopServer();
@@ -97,7 +98,7 @@ for (const [name, type, options] of [
     }
     await page.reload();
     await page
-      .getByRole("button", { name: "Отправиться в приключение" })
+      .getByRole("button", { name: /Начать строить|Продолжить строить/ })
       .click();
     await page.getByRole("button", { name: "Настройки", exact: true }).click();
     assert.equal(await page.locator("#music").inputValue(), "0");

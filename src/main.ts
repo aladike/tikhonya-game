@@ -1,94 +1,44 @@
-import { localize } from "./localize";
-import "./style.css";
-import { ru } from "./strings";
-import { Game } from "./game";
-import { Adventure } from "./adventure";
-import { Village } from "./village";
-import { Story } from "./story";
+import "./ui/style.css";
+import * as T from "three";
+import { IslandGame } from "./engine/game";
+import { IslandStore } from "./save/store";
+import { Interface } from "./ui/interface";
 const app = document.querySelector<HTMLDivElement>("#app")!;
-app.innerHTML = localize(
-  "s_61d30b4014",
-  ru.title,
-  ru.subtitle,
-  ru.help,
-  ru.settings,
-  ru.chapter,
-  ru.quest,
-  ru.questHint,
-  ru.night,
-  ru.walk,
-  ru.throw,
-  ru.action,
-  ru.jump,
-  ru.title,
-  ru.subtitle,
-  ru.tagline,
-  ru.intro,
-  ru.play,
-  ru.pause,
-  ru.resume,
-  ru.turn,
-);
-let game: Game;
+app.innerHTML = `<canvas id="world" aria-label="Блочный остров"></canvas><div id="loading"><span>🌱 Растим твой остров…</span><progress max="100" value="5"></progress><small id="loading-detail">Готовим краски</small></div>
+<div id="hud" hidden><header class="topbar"><div class="brand"><b>Тихоня</b><small id="world-label">Блочный остров</small></div><nav class="toolbar"><button id="camera" aria-label="Сменить вид" title="Сменить вид · F5">◉</button><button id="bag" aria-label="Рюкзак" title="Блоки · E">🎒</button><button id="help" aria-label="Как играть">?</button><button id="settings" aria-label="Настройки">⚙</button></nav></header><div id="hint" class="hint"></div><div id="save-status" class="status">Творческий режим · всё возможно</div><div id="crosshair"></div><div id="target-name"></div><div class="hotbar-wrap"><div id="selected-name"></div><div id="hotbar"></div></div><div class="controls"><button id="fly" aria-label="Полёт">🪁<small>Полёт</small></button><button id="action" aria-label="Действие">✋<small>Действие</small></button><button id="quiet" aria-label="Присесть">↓<small>Тише / вниз</small></button><button id="jump" aria-label="Прыжок">↑<small>Прыжок</small></button></div><div class="desktop-tip">WASD — шаг · Shift — бег<br>ЛКМ — сломать · ПКМ — поставить</div><div id="toast" role="status"></div></div>
+<div id="stick" hidden><i></i></div><div id="debug" hidden></div><div class="rotate-hint">↻ Поверни экран — так удобнее строить</div>
+<section id="start" class="overlay start" hidden><div class="start-card"><div class="eyebrow">МАЛЕНЬКИЙ ОСТРОВ · БОЛЬШИЕ ИДЕИ</div><h1>Тихоня<small>Блочный остров</small></h1><p>Замок? Радужный мост?<br>А может, дом выше облаков?</p><div class="sparkle">🌷 🧱 ☀️</div><button id="play" class="primary cta">Начать строить</button><p class="details">Бесконечные блоки. Твой мир. Твои правила.</p></div></section>
+<div id="paused" class="overlay" hidden><section class="modal"><h2>Остров подождёт ☀</h2><button id="resume" class="primary cta">Продолжить строить</button></section></div><div id="panel" class="overlay" hidden><section class="modal"><button id="close-panel" class="close" aria-label="Закрыть">×</button><div id="panel-content"></div></section></div>`;
 try {
-  game = new Game(document.querySelector<HTMLCanvasElement>("#world")!);
-} catch {
-  app.innerHTML = localize("s_a3655f0d22", ru.failure);
-  throw new Error("WebGL initialization failed");
-}
-const showPanel = (html: string) => {
-  game.paused = true;
-  game.input.clear();
-  game.sound.pause();
-  document.exitPointerLock?.();
-  document.querySelector("#panel-content")!.innerHTML = html;
-  document.querySelector<HTMLElement>("#panel")!.hidden = false;
-};
-const resume = () => {
-  game.paused = false;
-  game.input.clear();
-  void game.sound.start();
-  document.querySelector<HTMLElement>("#paused")!.hidden = true;
-  document.querySelector<HTMLElement>("#panel")!.hidden = true;
-};
-document.querySelector("#play")!.addEventListener("click", () => {
-  document.querySelector<HTMLElement>("#start")!.hidden = true;
-  document.querySelector<HTMLElement>("#hud")!.hidden = false;
-  game.start();
-});
-document.querySelector("#resume")!.addEventListener("click", resume);
-document.querySelector("#close-panel")!.addEventListener("click", resume);
-document
-  .querySelector("#help")!
-  .addEventListener("click", () =>
-    showPanel(localize("s_89f6d50483", ru.help, ru.controls, ru.touch)),
+  const [atlas, saved] = await Promise.all([
+    new T.TextureLoader().loadAsync(`${import.meta.env.BASE_URL}atlas.png`),
+    new IslandStore().load(),
+  ]);
+  document.querySelector<HTMLProgressElement>("#loading progress")!.value = 25;
+  const game = new IslandGame(
+    document.querySelector<HTMLCanvasElement>("#world")!,
+    atlas,
+    saved,
   );
-document.querySelector("#settings")!.addEventListener("click", () => {
-  showPanel(
-    localize("s_71415f2a78", ru.settings, game.sound.music, game.sound.effects),
-  );
-  for (const key of ["music", "effects"] as const)
-    document
-      .querySelector<HTMLInputElement>(`#${key}`)!
-      .addEventListener(
-        "input",
-        (e) => (game.sound[key] = Number((e.target as HTMLInputElement).value)),
-      );
-});
-export { game, showPanel, resume };
-// Development-only inspection surface; eliminated from production bundles.
-if (import.meta.env.DEV) Object.assign(window, { __game: game });
-
-export const adventure = new Adventure(game, showPanel, resume);
-if (import.meta.env.DEV) Object.assign(window, { __adventure: adventure });
-
-export const village = new Village(adventure);
-if (import.meta.env.DEV) Object.assign(window, { __village: village });
-
-export const story = new Story(adventure, village);
-if (import.meta.env.DEV) Object.assign(window, { __story: story });
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
+  new Interface(game);
+  if (import.meta.env.DEV) Object.assign(window, { __island: game });
+  if (saved)
+    document.querySelector("#play")!.textContent = "Продолжить строить";
+  const ready = window.setInterval(() => {
+    document.querySelector<HTMLProgressElement>("#loading progress")!.value =
+      Math.min(100, 25 + (game.world.groups.size / 9) * 75);
+    document.querySelector("#loading-detail")!.textContent =
+      `Складываем берега · ${Math.min(9, game.world.groups.size)} / 9`;
+    if (game.world.error) {
+      clearInterval(ready);
+      document.querySelector("#loading-detail")!.textContent = game.world.error;
+    } else if (game.world.groups.size >= 9) {
+      clearInterval(ready);
+      document.querySelector<HTMLElement>("#loading")!.hidden = true;
+      document.querySelector<HTMLElement>("#start")!.hidden = false;
+    }
+  }, 100);
+  if (import.meta.env.PROD && "serviceWorker" in navigator) {
     void navigator.serviceWorker
       .register(`${import.meta.env.BASE_URL}sw.js`, {
         scope: import.meta.env.BASE_URL,
@@ -96,12 +46,13 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
       })
       .then((registration) => {
         const offer = () => {
-          if (!registration.waiting) return;
+          if (!registration.waiting || document.querySelector("#update-game"))
+            return;
           const button = document.createElement("button");
           button.id = "update-game";
-          button.textContent = localize("s_8046df5ca7");
-          button.onclick = () => {
-            adventure.persist();
+          button.textContent = "✦ Обновить остров";
+          button.onclick = async () => {
+            await game.save();
             registration.waiting?.postMessage("ACTIVATE_UPDATE");
           };
           document.body.append(button);
@@ -117,23 +68,23 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
               offer();
           });
         });
-        let refreshed = false;
-        const hadController = !!navigator.serviceWorker.controller;
+        const controlled = !!navigator.serviceWorker.controller;
+        let reloaded = false;
         navigator.serviceWorker.addEventListener("controllerchange", () => {
-          if (hadController && !refreshed) {
-            refreshed = true;
+          if (controlled && !reloaded) {
+            reloaded = true;
             location.reload();
           }
         });
       })
-      .catch(() => game.toast(localize("s_38f173a414")));
-  });
+      .catch(() =>
+        game.onToast(
+          "Не удалось подготовить офлайн-копию. Попробуй открыть игру ещё раз.",
+        ),
+      );
+  }
+} catch (error) {
+  document.querySelector("#loading-detail")!.textContent =
+    "Не удалось открыть остров. Обнови страницу или попробуй другой браузер.";
+  if (import.meta.env.DEV) console.error(error);
 }
-
-document
-  .querySelectorAll<HTMLButtonElement>(".icon-button")
-  .forEach(
-    (button) => (button.title = button.getAttribute("aria-label") || ""),
-  );
-document.querySelector("#map")!.textContent = "⌖";
-document.querySelector("#helpers > span")!.textContent = "🐾";

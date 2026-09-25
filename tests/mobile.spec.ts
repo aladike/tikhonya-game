@@ -13,9 +13,9 @@ test("phone landscape supports simultaneous move, look and jump", async ({
   });
   const page = await context.newPage();
   await page.goto("http://127.0.0.1:5173/tikhonya-game/");
-  await page.getByRole("button", { name: "Отправиться в приключение" }).tap();
+  await page.getByRole("button", { name: "Начать строить" }).tap();
   const session = await context.newCDPSession(page);
-  const start = await page.evaluate(() => (window as any).__game.position.z);
+  const start = await page.evaluate(() => (window as any).__island.position.z);
   await session.send("Input.dispatchTouchEvent", {
     type: "touchStart",
     touchPoints: [
@@ -32,8 +32,8 @@ test("phone landscape supports simultaneous move, look and jump", async ({
   });
   await page.waitForTimeout(500);
   const state = await page.evaluate(() => {
-    const g = (window as any).__game;
-    return { z: g.position.z, yaw: g.yaw, power: g.input.touchPower };
+    const g = (window as any).__island;
+    return { z: g.position.z, yaw: g.yaw, power: g.input.power };
   });
   expect(state.z).toBeLessThan(start);
   expect(state.yaw).not.toBe(0);
@@ -42,9 +42,9 @@ test("phone landscape supports simultaneous move, look and jump", async ({
     type: "touchEnd",
     touchPoints: [],
   });
-  await page.locator('[data-key="Space"]').tap();
+  await page.locator("#jump").tap();
   await expect
-    .poll(() => page.evaluate(() => (window as any).__game.position.y))
+    .poll(() => page.evaluate(() => (window as any).__island.position.y))
     .toBeGreaterThan(0);
   await page.screenshot({ path: "test-results/phone-landscape.png" });
   await page.setViewportSize({ width: 390, height: 844 });
