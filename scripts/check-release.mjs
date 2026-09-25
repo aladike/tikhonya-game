@@ -44,11 +44,12 @@ for (const [name, type, options] of [
     await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const target =
     remote || `http://127.0.0.1:${server.address().port}/tikhonya-game/`;
-  const browser = await type.launch(
-    name === "chromium"
+  const browser = await type.launch({
+    headless: !process.env.CI,
+    ...(name === "chromium"
       ? { args: ["--use-angle=swiftshader", "--enable-webgl"] }
-      : {},
-  );
+      : {}),
+  });
   const stopServer = async () => {
     if (server.listening) {
       server.closeAllConnections();
