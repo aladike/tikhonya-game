@@ -8,6 +8,7 @@ export class Game {
   scene=new T.Scene(); camera=new T.PerspectiveCamera(55,innerWidth/innerHeight,.1,100);
   renderer:T.WebGLRenderer; world:World; input:Input; sound=new Sound();
   hero=person(); bubul=monster(); position=new T.Vector3(0,0,8); checkpoint=new T.Vector3(0,0,8);
+  friendlyBubul=false;
   started=false; paused=false; hidden=false; day=false; carrying=false; delivered=0;
   velocityY=0; yaw=0; pitch=.62; time=0; stepTime=0; catchTime=0; throwCooldown=0;
   monsterState='patrol'; monsterTarget=new T.Vector3(4,0,-7); monsterTimer=0; lastNoise=new T.Vector3();
@@ -38,7 +39,7 @@ export class Game {
   noise(at:T.Vector3,size:number){
     const mesh=new T.Mesh(new T.RingGeometry(.92,1,48),new T.MeshBasicMaterial({color:'#f9db98',transparent:true,opacity:.65,side:T.DoubleSide,depthWrite:false}));
     mesh.rotation.x=-Math.PI/2;mesh.position.set(at.x,.08,at.z);this.scene.add(mesh);this.rings.push({mesh,age:0,size});
-    if(!this.day&&at.distanceTo(this.bubul.g.position)<size*1.5+2){this.lastNoise.copy(at);this.monsterTarget.copy(at);this.monsterState=size>4?'chase':'investigate';this.monsterTimer=6;}
+    if(!this.day&&!this.friendlyBubul&&at.distanceTo(this.bubul.g.position)<size*1.5+2){this.lastNoise.copy(at);this.monsterTarget.copy(at);this.monsterState=size>4?'chase':'investigate';this.monsterTimer=6;}
     this.lastNoise.copy(at);this.onEvent('noise');
   }
   throw(){
@@ -104,7 +105,7 @@ export class Game {
     for(let i=this.projectiles.length-1;i>=0;i--){const p=this.projectiles[i];p.age+=dt;const t=Math.min(p.age/.65,1);p.mesh.position.lerpVectors(p.from,p.to,t);p.mesh.position.y+=Math.sin(t*Math.PI)*2.5;p.mesh.rotation.x+=dt*8;if(t===1){this.noise(p.to,8);this.scene.remove(p.mesh);p.mesh.geometry.dispose();this.projectiles.splice(i,1);}}
   }
   private updateMonster(dt:number){
-    if(this.day||!this.bubul.g.visible)return;this.monsterTimer-=dt;
+    if(this.day||this.friendlyBubul||!this.bubul.g.visible)return;this.monsterTimer-=dt;
     if(this.monsterTimer<=0&&this.monsterState!=='patrol'){this.monsterState='patrol';this.monsterTimer=4;}
     if(this.monsterState==='patrol'&&this.bubul.g.position.distanceTo(this.monsterTarget)<1){this.monsterTarget.set(Math.sin(this.time*.37)*6,0,-6+Math.cos(this.time*.37)*7);}
     const delta=this.monsterTarget.clone().sub(this.bubul.g.position);delta.y=0;const distance=delta.length();

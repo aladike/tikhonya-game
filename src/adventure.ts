@@ -22,7 +22,7 @@ export class Adventure {
     document.querySelector('.top-actions')!.insertAdjacentHTML('afterbegin','<button id="map" class="icon-button" aria-label="Карта леса">♧</button>');
     document.querySelector('.actions')!.insertAdjacentHTML('afterbegin','<button id="helpers" class="action small"><span>♧</span><small>Друзья</small><kbd>1–3</kbd></button>');
     document.querySelector('#map')!.addEventListener('click',()=>this.map());document.querySelector('#helpers')!.addEventListener('click',()=>this.helpers());
-    this.changeZone(this.state.zone>1?0:this.state.zone,false);game.setDay(this.state.day);
+    this.changeZone(this.state.zone,false);game.setDay(this.state.day);
     const oldSettings=document.querySelector('#settings')!;oldSettings.replaceWith(oldSettings.cloneNode(true));document.querySelector('#settings')!.addEventListener('click',()=>this.settings());
     if(this.state.delivered>0)document.querySelector('#play')!.textContent='Продолжить приключение';
     if(this.store.recovered)game.toast('Сохранение не удалось прочитать. Можно восстановить резервную копию в настройках.');
@@ -70,7 +70,7 @@ export class Adventure {
       if(delta.length()>.5){pet.position.addScaledVector(delta.normalize(),dt*4.6);pet.rotation.y=Math.atan2(delta.x,delta.z);}pet.position.y=i===1&&this.catTimer>0?2+Math.sin(g.time)*.1:Math.abs(Math.sin(g.time*8+i))*.05;
       if(i===0&&this.dogTarget&&pet.position.distanceTo(this.dogTarget)<.8){if(this.dogCommand==='bark'){g.noise(this.dogTarget,10);g.sound.tone(240,.2,.15);}else{const item=this.items.find(x=>x.id===this.dogCommand);if(item&&item.mesh.visible)this.collect(item);}this.dogTarget=null;}
     });
-    if(this.state.zone<=1&&!g.day){
+    if(this.state.zone<=1&&!g.day&&!this.state.friends.includes(1)&&!this.state.found.includes('gift-1')){
       this.enemy.g.visible=true;g.bubul.g.visible=this.state.zone===0;this.enemyTimer=Math.max(0,this.enemyTimer-dt);
       const p=this.enemy.g.position;const delta=g.position.clone().sub(p);const angle=Math.atan2(delta.x,delta.z);const turn=Math.atan2(Math.sin(angle-this.enemy.g.rotation.y),Math.cos(angle-this.enemy.g.rotation.y));
       if(!g.hidden&&delta.length()<8&&Math.abs(turn)<.45){this.enemyTimer=4;this.enemyState='chase';}
