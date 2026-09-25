@@ -182,10 +182,10 @@ export class Game {
   }
   context() {
     if (this.hidden) return ru.leave;
-    const extra = this.extraContext();
-    if (extra) return extra;
     if (this.carrying && Math.hypot(this.position.x, this.position.z - 10) < 3)
       return ru.home;
+    const extra = this.extraContext();
+    if (extra) return extra;
     if (
       !this.carrying &&
       this.world.flowers.some(
@@ -202,7 +202,6 @@ export class Game {
       this.hidden = false;
       return;
     }
-    if (this.onInteract()) return;
     if (
       this.carrying &&
       Math.hypot(this.position.x, this.position.z - 10) < 3
@@ -216,6 +215,7 @@ export class Game {
       this.onEvent("delivery");
       return;
     }
+    if (this.onInteract()) return;
     const flower =
       !this.carrying &&
       this.world.flowers.find(

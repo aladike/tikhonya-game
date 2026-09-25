@@ -141,3 +141,28 @@ test("quiet steps stay silent, running makes waves, and a catch retains the flow
   await expect(page.locator("#toast")).toContainText("Апчхи");
   expect(await page.evaluate(() => (window as any).__game.carrying)).toBe(true);
 });
+test("returning through the map still allows delivery at home", async ({
+  page,
+}) => {
+  await page.goto("./");
+  await page.getByRole("button", { name: "Отправиться в приключение" }).click();
+  await page.evaluate(() => {
+    const g = (window as any).__game;
+    g.position.set(0, 0, -17);
+    g.act();
+  });
+  await page.getByRole("button", { name: "Карта леса" }).click();
+  await page.locator("#map-home").click();
+  await expect(page.locator("#action-label")).toHaveText("Домой");
+  await page.keyboard.press("KeyE");
+  await expect(page.locator("#flower-count")).toHaveText("1");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () =>
+          JSON.parse(localStorage.getItem("tikhonya-save-v2")!).inventory
+            .flower,
+      ),
+    )
+    .toBe(1);
+});

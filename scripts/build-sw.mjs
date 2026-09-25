@@ -10,7 +10,9 @@ async function list(path) {
     )
   ).flat();
 }
-const files = (await list("dist")).filter((p) => !p.endsWith("/sw.js"));
+const files = (await list("dist"))
+  .filter((p) => !p.endsWith("/sw.js") && !p.endsWith("/release.json"))
+  .sort();
 const hash = createHash("sha256");
 for (const file of files) hash.update(await readFile(file));
 hash.update(await readFile(new URL(import.meta.url)));
